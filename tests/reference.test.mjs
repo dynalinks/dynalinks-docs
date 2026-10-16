@@ -68,9 +68,20 @@ test("reference pages are in the sidebar under display names", () => {
   }
 });
 
-test("Try it targets the production API without a proxy", () => {
+// The server comes from the spec the site was built from: staging on PRs, production on main.
+async function expectedServer() {
+  const source =
+    process.env.OPENAPI_URL ?? "https://dynalinks.app/api/v1/openapi.json";
+  const spec = /^https?:/.test(source)
+    ? await (await fetch(source)).json()
+    : JSON.parse(readFileSync(source, "utf8"));
+  return spec.servers[0].url;
+}
+
+test("Try it targets the spec's server without a proxy", async () => {
   const html = readOut(outFileFor("/reference/links/delete-link"));
-  assert.ok(html.includes("https://dynalinks.app/api/v1"));
+  const server = await expectedServer();
+  assert.ok(html.includes(server), `page doesn't target ${server}`);
   for (const file of walk(OUT, (f) => /\.(html|js|json)$/.test(f))) {
     const content = readFileSync(file, "utf8");
     assert.ok(
