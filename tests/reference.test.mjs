@@ -133,3 +133,12 @@ test("Guides and API reference tabs", () => {
     "reference sidebar lists guide pages",
   );
 });
+
+test("overview documents the same auth header as the guides", () => {
+  const overview = readFileSync(
+    join(ROOT, "content/docs/reference/index.mdx"),
+    "utf8",
+  );
+  assert.match(overview, /Authorization: Token <key>/);
+  assert.doesNotMatch(overview, /Bearer/);
+});
