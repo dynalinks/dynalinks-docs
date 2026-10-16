@@ -2,7 +2,14 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { outFileFor, outHtmlFiles, ROOT, readOut, walk } from "./helpers.mjs";
+import {
+  BASE_PATH,
+  outFileFor,
+  outHtmlFiles,
+  ROOT,
+  readOut,
+  walk,
+} from "./helpers.mjs";
 
 const REDIRECTS_FILE = join(ROOT, "redirects.json");
 const IGNORED_HREF_PREFIXES = ["/_next", "/api/search", "/og", "/llms"];
@@ -30,7 +37,9 @@ test("every internal link resolves", () => {
     for (const [, href] of readOut(file).matchAll(/href="(\/[^"]*)"/g)) {
       if (
         href.startsWith("//") ||
-        IGNORED_HREF_PREFIXES.some((prefix) => href.startsWith(prefix))
+        IGNORED_HREF_PREFIXES.some((prefix) =>
+          href.startsWith(`${BASE_PATH}${prefix}`),
+        )
       )
         continue;
       if (!outFileFor(href)) broken.push(`${file} → ${href}`);
@@ -61,7 +70,10 @@ test("sidebar lists every page", () => {
     );
     const html = readOut(outFileFor(`/${section}/${pages[0]}`));
     for (const url of sectionUrls) {
-      assert.ok(html.includes(`href="${url}"`), `${url} is not in the sidebar`);
+      assert.ok(
+        html.includes(`href="${BASE_PATH}${url}"`),
+        `${url} is not in the sidebar`,
+      );
     }
   }
 });

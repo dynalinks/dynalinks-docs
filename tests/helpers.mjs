@@ -13,10 +13,11 @@ export function readOut(relPath) {
 // Resolves a URL path the way GitHub Pages does: `/a/b` serves `a/b`,
 // `a/b.html` or `a/b/index.html`. Returns the path relative to out/, or null.
 export function outFileFor(urlPath) {
-  const path = decodeURI(urlPath.split("#")[0].split("?")[0]).replace(
-    /^\/+/,
-    "",
-  );
+  let path = decodeURI(urlPath.split("#")[0].split("?")[0]);
+  if (BASE_PATH && (path === BASE_PATH || path.startsWith(`${BASE_PATH}/`))) {
+    path = path.slice(BASE_PATH.length);
+  }
+  path = path.replace(/^\/+/, "");
   const candidates =
     path === ""
       ? ["index.html"]

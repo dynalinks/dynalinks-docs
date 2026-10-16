@@ -7,7 +7,12 @@ export function baseOptions(): BaseLayoutProps {
       title: (
         <>
           {/* biome-ignore lint/performance/noImgElement: static export, no image optimisation */}
-          <img src="/logo.webp" alt="" height={24} width={24} />
+          <img
+            src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/logo.webp`}
+            alt=""
+            height={24}
+            width={24}
+          />
           <span className="font-semibold">{appName}</span>
         </>
       ),
