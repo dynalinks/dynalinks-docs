@@ -1,4 +1,6 @@
 {
   "title": "API reference",
+  "description": "Every endpoint, with Try it",
+  "root": true,
   "pages": ["links", "short-links", "ios-apps", "android-apps", "..."]
 }

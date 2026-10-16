@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { OUT, outHtmlFiles, readOut, walk } from "./helpers.mjs";
+import { BASE_PATH, OUT, outHtmlFiles, readOut, walk } from "./helpers.mjs";
 
 const TOP_BAR_LINKS = [
   "https://dynalinks.app",
-  "https://dynalinks.readme.io",
   "https://dynalinks.app/pricing",
   "https://dynalinks.app/faq",
   "https://dynalinks.app/users/sign_in",
@@ -18,6 +17,14 @@ test("top bar has the six links", () => {
   for (const href of TOP_BAR_LINKS) {
     assert.ok(home.includes(`href="${href}"`), `missing top bar link ${href}`);
   }
+});
+
+test("API link goes to the reference", () => {
+  const href = `${BASE_PATH}/reference`.replaceAll("/", "\\/");
+  assert.match(
+    readOut("index.html"),
+    new RegExp(`<a[^>]*href="${href}"[^>]*>(?:<[^>]+>)*API<`),
+  );
 });
 
 test("logo and favicon are served", () => {

@@ -19,7 +19,7 @@ export function baseOptions(): BaseLayoutProps {
     },
     links: [
       { text: "Home", url: "https://dynalinks.app" },
-      { text: "API", url: "https://dynalinks.readme.io" },
+      { text: "API", url: "/reference" },
       { text: "Pricing", url: "https://dynalinks.app/pricing" },
       { text: "FAQ", url: "https://dynalinks.app/faq" },
       { text: "Console", url: "https://dynalinks.app/users/sign_in" },

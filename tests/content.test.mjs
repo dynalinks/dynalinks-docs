@@ -66,7 +66,10 @@ test("sidebar lists every page", () => {
   const sections = Object.groupBy(urls, (url) => url.split("/")[1]);
   for (const [section, sectionUrls] of Object.entries(sections)) {
     const { pages } = JSON.parse(
-      readFileSync(join(ROOT, "content/docs", section, "meta.json"), "utf8"),
+      readFileSync(
+        join(ROOT, "content/docs/(guides)", section, "meta.json"),
+        "utf8",
+      ),
     );
     const html = readOut(outFileFor(`/${section}/${pages[0]}`));
     for (const url of sectionUrls) {

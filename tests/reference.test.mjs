@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { test } from "node:test";
-import { BASE_PATH, OUT, outFileFor, readOut, walk } from "./helpers.mjs";
+import { BASE_PATH, OUT, outFileFor, ROOT, readOut, walk } from "./helpers.mjs";
 
 export const REFERENCE_PAGES = {
   links: [
@@ -88,4 +88,37 @@ test("reference is searchable", () => {
       `${url} is not in the search index`,
     );
   }
+});
+
+test("no links to ReadMe", () => {
+  const files = [
+    ...walk(join(ROOT, "content/docs"), (f) => f.endsWith(".mdx")),
+    ...walk(OUT, (f) => f.endsWith(".html")),
+  ];
+  const hits = files.filter((file) =>
+    readFileSync(file, "utf8").includes("readme.io"),
+  );
+  assert.deepEqual(
+    hits.map((file) => relative(ROOT, file)),
+    [],
+  );
+});
+
+// The tab switcher renders the current tab; the other one only appears when it opens.
+test("Guides and API reference tabs", () => {
+  const reference = readOut(outFileFor("/reference/links/list-links"));
+  const guide = readOut(outFileFor("/ios/sdk"));
+  const currentTab = (html) =>
+    html.match(/<p class="text-sm font-medium">([^<]+)<\/p>/)?.[1];
+
+  assert.equal(currentTab(guide), "Guides");
+  assert.equal(currentTab(reference), "API reference");
+  assert.ok(
+    !guide.includes(`href="${BASE_PATH}/reference/links/list-links"`),
+    "guide sidebar lists reference pages",
+  );
+  assert.ok(
+    !reference.includes(`href="${BASE_PATH}/ios/sdk"`),
+    "reference sidebar lists guide pages",
+  );
 });
