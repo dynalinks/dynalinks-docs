@@ -1,0 +1,33 @@
+---
+title: "Unnamed links"
+---
+
+<ProFeature message="Unnamed links are only available on the Pro plan. On other plans they show an error page instead." />
+
+
+You can create a dynalink by manually constructing a URL with the following format:
+
+```
+https://{your-project-subdomain}.dynalinks.app/?link={deep_link}&ibi={apple_bundle_identifier}&apn={android_package_name}
+```
+
+
+You don't need to register these links in the console or use our REST API.
+
+These manually constructed links work the same way as regular dynalinks created through the console or the API. The key difference is that you don't need to create or register them beforehand. Construct the URL with the appropriate parameters and use it directly.
+
+## Parameters
+
+| Parameter | Description                                                                                                                               | Required |
+|-----------|-------------------------------------------------------------------------------------------------------------------------------------------|----------|
+| link      | The deep link your app will open must be a well-formatted, properly URL-encoded URL using the HTTP or HTTPS scheme.                       | Yes      |
+| ibi       | The iOS bundle ID of the app to open, which must be connected to your project from the console.                                           | No       |
+| apn       | The Android package name of the app to open, which must be connected to your project from the console. (Either ibi or apn must be passed) | No       |
+| st        | The title to use when sharing the dynalink in a social post.                                                                              | No       |
+| sd        | The description to use when sharing the dynalink in a social post.                                                                        | No       |
+| si        | The URL to an image related to this link. The image should have a minimum resolution of 300x200 px and be less than 300 KB.               | No       |
+| efr       | Enable forced redirect, pass true or false.                                                                                               | No       |
+| afl       | User will be redirected to this URL if app is not installed on Android.                                                                   | No       |
+| ifl       | User will be redirected to this URL if app is not installed on iOS.                                                                       | No       |
+| referrer  | Android referrer                                                                                                                          | No       |
+| ide       | iOS deferred deep linking enabled                                                                                                         | No       |

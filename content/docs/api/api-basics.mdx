@@ -1,0 +1,256 @@
+---
+title: "API basics"
+---
+
+The Dynalinks REST API lets you create, update, list and delete links, shorten URLs, and manage the iOS and Android apps of a project from your own backend. This page covers the conventions shared by every endpoint. For the full endpoint reference, see [dynalinks.readme.io](https://dynalinks.readme.io).
+
+---
+
+## Base URL
+
+All endpoints live under a single versioned base URL:
+
+```
+https://dynalinks.app/api/v1
+```
+
+Always use `https`. Your project's subdomain (for example `yourproject.dynalinks.app`) serves your links, not the API.
+
+---
+
+## Authentication
+
+Every request needs a project API key. You can find it in the console under **Settings** > **API Keys**. Send it in the `Authorization` header:
+
+```bash
+curl https://dynalinks.app/api/v1/links \
+  --header 'Authorization: Token YOUR_API_KEY'
+```
+
+You can also pass it as an `api_key` query parameter. See [API authorization](/api/authorization) for both options.
+
+A key belongs to one project, so every request works on that project's data. You never pass a project ID.
+
+<Callout title="Note">
+When you create a key with custom scopes, it can only call the endpoints you selected (for example `links.index` or `links.create`). A key with no scopes selected has full access. A request outside the key's scopes is rejected with `401`.
+</Callout>
+
+<Callout type="warn" title="Warning">
+Your API key gives write access to your project. Keep it on your server and never ship it inside a mobile or web app. The mobile SDKs use a separate **client API key** from **Settings** > **Mobile SDK**, which cannot be used with this API.
+</Callout>
+
+---
+
+## Requests and responses
+
+- Request and response bodies are JSON.
+- `POST`, `PATCH` and `PUT` requests must send `Content-Type: application/json`. Without it, the API responds with `400 Bad Request`.
+- `GET` and `DELETE` requests take their parameters in the query string.
+- Field names use `snake_case`, for example `ios_fallback_url`.
+- Resources are identified by an `id` string (a UUID) that is returned when you create or list them.
+
+```bash
+curl --request POST https://dynalinks.app/api/v1/links \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{"name": "Spring sale", "path": "sale/spring", "url": "https://example.com/sale"}'
+```
+
+---
+
+## Status codes and errors
+
+Successful requests return:
+
+| Status | Meaning |
+|:-------|:--------|
+| `200 OK` | The request succeeded. The body contains the resource. |
+| `201 Created` | A resource was created. The body contains the new resource. |
+| `204 No Content` | The resource was deleted. The body is empty. |
+
+Failed requests return a JSON body with a single `error` message:
+
+```json
+{
+  "error": "Missing or invalid api_key"
+}
+```
+
+| Status | When it happens |
+|:-------|:----------------|
+| `400 Bad Request` | The body is not valid JSON, the `Content-Type` is not `application/json`, a required parameter is missing, or `page` / `limit` is not a positive number. |
+| `401 Unauthorized` | The API key is missing or invalid, the account is suspended, the key does not have the required scope, or your plan does not allow the action (for example, exceeding the free tier link limit). The `error` message tells you which. |
+| `404 Not Found` | No resource with that `id` exists in the project the key belongs to. |
+| `422 Unprocessable Content` | The data failed validation. The `error` message lists every problem in one sentence, for example `Package name is invalid and Fingerprints can't be blank`. |
+| `429 Too Many Requests` | You exceeded a rate limit. See [Rate limits](#rate-limits). |
+| `503 Service Unavailable` | The request took too long to process. The response includes a `Retry-After: 1` header. Retry after a short pause. |
+
+<Callout title="Note">
+The URL shortening endpoint (`POST /api/v1/short_links`) returns some of its errors under an `errors` key instead of `error`. Check for both if you handle errors generically.
+</Callout>
+
+---
+
+## Pagination
+
+List endpoints (`GET /api/v1/links`, `GET /api/v1/ios_apps`, `GET /api/v1/android_apps`) return results one page at a time.
+
+| Parameter | Default | Description |
+|:----------|:--------|:------------|
+| `page` | `1` | The page number, starting at 1. |
+| `limit` | `20` | How many items to return per page. |
+
+Both must be positive whole numbers. `0`, negative values, or text return `400 Bad Request`.
+
+```bash
+curl 'https://dynalinks.app/api/v1/links?page=2&limit=50' \
+  --header 'Authorization: Token YOUR_API_KEY'
+```
+
+The response wraps the items in a named array and adds a `meta` object:
+
+```json
+{
+  "links": [
+    { "id": "1f0c6e9a-2b7d-4c1e-9a4f-6d2b8e3c5a71", "name": "Spring sale", "path": "sale/spring", "...": "..." }
+  ],
+  "meta": {
+    "page": 2,
+    "limit": 50,
+    "count": 134,
+    "last": 3,
+    "from": 51,
+    "to": 100,
+    "previous": 1,
+    "next": 3
+  }
+}
+```
+
+| Field | Description |
+|:------|:------------|
+| `page` | The current page. |
+| `limit` | Items per page. |
+| `count` | Total number of items across all pages. |
+| `last` | The number of the last page. |
+| `from`, `to` | The position of the first and last item on this page. Both are `0` when the page is empty. |
+| `previous`, `next` | The previous and next page numbers. `next` is left out on the last page. |
+
+The `meta` object may include additional fields (such as page URLs). Rely only on the ones listed above.
+
+To fetch everything, keep requesting the next page until `next` is missing. Asking for a page past the end returns `200` with an empty array, not an error.
+
+<Callout title="Note">
+Results have no guaranteed order unless you sort them. When paging through a list that may change while you read it, sort by `created_at` (see below) so that items do not shift between pages.
+</Callout>
+
+---
+
+## Filtering and sorting
+
+List endpoints accept filters in a `q` parameter. Each filter is written as `q[<field>_<condition>]=<value>`.
+
+Common conditions:
+
+| Condition | Meaning | Example |
+|:----------|:--------|:--------|
+| `eq` | equals | `q[path_eq]=sale/spring` |
+| `not_eq` | does not equal | `q[name_not_eq]=Test` |
+| `cont` | contains (case insensitive) | `q[name_cont]=sale` |
+| `start` | starts with | `q[path_start]=products/` |
+| `in` | is one of | `q[path_in][]=a&q[path_in][]=b` |
+| `gt`, `gteq`, `lt`, `lteq` | greater / less than (or equal) | `q[created_at_gteq]=2026-01-01` |
+| `null`, `present` | is empty / is not empty | `q[shortened_path_present]=1` |
+
+Fields you can filter links by:
+
+| Field | Description |
+|:------|:------------|
+| `name` | The link name. |
+| `path` | The link path, for example `sale/spring`. |
+| `shortened_path` | The short path, for links that were shortened. |
+| `clicks` | The stored click count. |
+| `created_at` | When the link was created. |
+| `created_via` | Where the link was created: `api` or `console`. |
+| `ios_app_bundle_id` | The bundle ID of the link's iOS app. |
+| `android_app_package_name` | The package name of the link's Android app. |
+
+The fields available for iOS and Android apps are listed in [iOS and Android apps API](/api/apps-api#listing-apps).
+
+To sort, pass `q[s]` with a field name and `asc` or `desc`:
+
+```bash
+curl --get https://dynalinks.app/api/v1/links \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --data-urlencode 'q[path_start]=products/' \
+  --data-urlencode 'q[s]=created_at desc' \
+  --data-urlencode 'limit=100'
+```
+
+<Callout type="warn" title="Warning">
+Filters on fields that are not in the list above are ignored, not rejected. A typo in a field name returns the unfiltered list, so double-check filter names when a query returns more than you expect.
+</Callout>
+
+You do not need to filter by path before creating a link. Use the [upsert endpoint](/api/checking-if-link-exists) to create or update a link in one request.
+
+---
+
+## Deleting a link
+
+Delete a link with its `id`, the UUID returned when the link was created or listed. The link path does not work here.
+
+```bash
+curl --request DELETE https://dynalinks.app/api/v1/links/1f0c6e9a-2b7d-4c1e-9a4f-6d2b8e3c5a71 \
+  --header 'Authorization: Token YOUR_API_KEY'
+```
+
+A successful delete returns `204 No Content` with an empty body. An unknown `id` returns `404 Not Found`.
+
+If you only know the path, look the link up first and use the `id` from the result:
+
+```bash
+curl --get https://dynalinks.app/api/v1/links \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --data-urlencode 'q[path_eq]=sale/spring'
+```
+
+<Callout type="error" title="Important">
+Deleting a link is permanent. The URL stops resolving immediately, so anyone who opens it afterwards no longer reaches your app or fallback.
+</Callout>
+
+---
+
+## Rate limits
+
+Write requests are rate limited per API key. Read requests and deletes of links are not rate limited.
+
+| Endpoints | Shared limit per API key |
+|:----------|:-------------------------|
+| Link writes: `POST /api/v1/links`, `POST /api/v1/links/upsert`, `PATCH` / `PUT /api/v1/links/:id` | 600 requests per minute |
+| URL shortening: `POST /api/v1/short_links` | 600 requests per minute |
+| iOS app writes: `POST`, `PATCH` / `PUT` and `DELETE` on `/api/v1/ios_apps` | 600 requests per minute |
+| Android app writes: `POST`, `PATCH` / `PUT` and `DELETE` on `/api/v1/android_apps` | 600 requests per minute |
+
+The endpoints in one row share a single budget. For example, 400 link creates and 200 link updates in the same minute use up the link writes limit for that key, while URL shortening still has its own 600. Each API key has its own budgets.
+
+When you go over a limit, the API responds with:
+
+```
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/json
+
+{"error": "Rate limit exceeded. Too many requests."}
+```
+
+The response does not include a `Retry-After` header. Wait a few seconds and retry, ideally with exponential backoff. If you need to create a large number of links, spread the requests out over time instead of sending them in parallel bursts.
+
+---
+
+## Full reference
+
+Every endpoint, parameter and response field is documented in the API reference at [dynalinks.readme.io](https://dynalinks.readme.io). Related guides:
+
+- [API authorization](/api/authorization)
+- [URL shortening](/api/link-shortening)
+- [Unnamed links](/api/unnamed-links)
+- [iOS and Android apps API](/api/apps-api)

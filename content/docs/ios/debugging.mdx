@@ -1,0 +1,157 @@
+---
+title: "Debugging - Link Not Opening"
+---
+
+When your iOS deep links aren't opening the app as expected, this guide will help you diagnose and fix the issue.
+
+---
+
+## Apple Diagnostic Tool
+
+The most effective way to debug iOS deep links is using Apple's built-in diagnostic tool:
+
+### Step 1: Enable Developer Mode
+*Skip this step if Developer Mode is already enabled on your device.*
+
+1. Go to **Settings** > **Privacy & Security** > **Developer Mode**
+2. Turn on **Developer Mode**
+3. Restart your device when prompted
+
+More info: [Enabling Developer Mode on a device](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device)
+
+### Step 2: Configure Universal Links Diagnostics
+1. Open **Settings** > **Developer**
+2. Scroll to the **Universal Links** section
+3. Turn on **Associated Domains Development**
+
+### Step 3: Run Diagnostics
+1. In the Developer settings, under the **Universal Links** section, find **Diagnostics**
+2. Enter your full Dynalinks URL (e.g., `https://yourapp.dynalinks.app/your/path`)
+3. The diagnostic will show whether the link is valid for your installed app
+
+**Expected Result:** You should see "Opens installed application" if everything is configured correctly.
+
+---
+
+## Important testing notes
+
+### URLs Cannot Be Pasted into Browser Address Bar
+> **Note:** Entering the URL directly into the web browser's address bar will never open the app, as this is direct navigation within the web browser. As long as the user is on your domain after navigating there directly, your site will show a banner to open your app.
+
+### Proper Testing Methods
+Test your links by:
+- Clicking links in **emails**
+- Tapping links in **Messages** or **Notes**
+- Long-pressing links to see the preview menu
+- Using **Safari** to navigate to a different site, then clicking your link
+
+---
+
+## Common issues and solutions
+
+### Issue 1: Bundle Identifier Mismatch
+**Problem:** Your app has different bundle identifiers for debug/release builds.
+
+**Solution:**
+- Debug builds often have suffixes like `.debug` or `.acc`
+- Make sure your Dynalinks iOS app configuration matches the bundle ID you're testing with
+- For production testing, use the exact bundle identifier from your App Store build
+
+### Issue 2: Team ID Mismatch
+**Problem:** The Team ID in your Dynalinks configuration doesn't match your Apple Developer account.
+
+**Solution:**
+- Check your Team ID in [Apple Developer Console](https://developer.apple.com/account/)
+- Verify it matches the Team ID in your Dynalinks iOS app settings
+- The diagnostic tool will show the correct Team ID if there's a mismatch
+
+### Issue 3: App Store vs Local Builds
+**Problem:** Links work with local Xcode builds but not with App Store versions.
+
+**Solution:**
+- Ensure your App Store build includes the Associated Domains entitlement
+- Verify the entitlement using: `codesign -d --entitlements :- "YourApp.app"`
+- The App Store build must have the same bundle identifier as configured in Dynalinks
+
+---
+
+## Advanced debugging
+
+### Check Associated Domains Configuration
+You can verify your app's associated domains configuration at:
+```
+https://your-app.dynalinks.app/.well-known/apple-app-site-association
+```
+
+This shows the current bundle identifier and Team ID that Dynalinks is configured to use.
+
+### Developer Mode Testing
+Add `?mode=developer` to your associated domain in Xcode settings during development:
+```
+applinks:your-app.dynalinks.app?mode=developer
+```
+
+### Required App Delegate Methods
+Ensure your app implements these methods in AppDelegate or SceneDelegate:
+
+```swift
+func application(_ application: UIApplication,
+                 continue userActivity: NSUserActivity,
+                 restorationHandler: @escaping ([UIUserActivityRestoring]) -> Void) -> Bool {
+    // Handle universal link
+    return true
+}
+
+func scene(_ scene: UIScene, 
+           willConnectTo session: UISceneSession, 
+           options connectionOptions: UIScene.ConnectionOptions) {
+    // Handle universal link at app launch
+}
+```
+
+---
+
+## Device-specific issues
+
+### iOS Caching
+- iOS caches universal link configurations
+- Try restarting your device if changes aren't taking effect
+- Reinstalling the app can refresh the cache
+- Test on multiple devices to rule out device-specific issues
+
+### Fallback Behavior
+If universal links fail, your app should:
+- Show the fallback URL (if configured)
+- Display the App Store page with an "Open" button
+- Provide a web-based experience until the app issue is resolved
+
+---
+
+## SDK debug logging
+
+If you're using the [Dynalinks iOS SDK](/ios/sdk), enable debug logging for detailed diagnostics:
+
+```swift
+try Dynalinks.configure(
+    clientAPIKey: "your-api-key",
+    logLevel: .debug  // Shows all SDK activity
+)
+```
+
+This will log fingerprint matching attempts, API responses, and any errors to the console.
+
+---
+
+## 🆘 Still Having Issues?
+
+If the diagnostic tool shows everything is configured correctly but links still don't work:
+
+1. **Restart your device** - This clears iOS universal link caches
+2. **Test on a different device** - Rules out device-specific configuration issues
+3. **Check your app's universal link handling code** - Ensure proper implementation
+
+For additional support, contact our team with:
+- Screenshots of the diagnostic tool results
+- Your app's bundle identifier
+- The specific link you're testing
+- Device model and iOS version

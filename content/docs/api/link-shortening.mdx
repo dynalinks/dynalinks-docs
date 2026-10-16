@@ -1,0 +1,83 @@
+---
+title: "URL shortening"
+---
+
+<ProFeature />
+
+
+We support URL shortening for **Pro** projects!
+
+You can shorten your links either via the **Dynalinks Console UI** or by using our **REST API**.
+
+## Shortening a link in the Console
+
+1. Go to your project's console page.
+2. Click on **Links** in the top bar.
+3. Find the existing link you want to shorten and click on the three dots on the right side.
+4. Click **Edit**.
+5. In the **Edit Link** form, click on **Generate** next to the **Shortened Path** field.
+
+After generating, the shortened link will be ready to use!
+
+---
+
+## Shortening a link with the REST API
+ 
+You can shorten a link programmatically using the following endpoint:
+
+**POST** `https://dynalinks.app/api/v1/short_links/`
+
+### Example payload:
+
+```json
+{
+  "url": "https://your-project-subdomain.dynalinks.app/yourExistingLink"
+}
+```
+
+### Example response:
+
+```json
+{
+  "shortened_path": "4vsz"
+}
+```
+
+You can now access your link via:
+
+```
+https://your-project-subdomain.dynalinks.app/{shortened_path}
+```
+
+### Generating a Shortened Link while Creating a Link
+
+You can also generate shortened version of a link while creating it.
+In order to do so pass `options: { shorten: true }` in the payload of the link creation request.
+
+---
+
+## Resolving a shortened link
+
+If you want to retrieve the original link from a shortened one, use:
+
+**POST** `/api/v1/short_links/resolve`
+
+### Example payload:
+
+```json
+{
+  "url": "https://your-project-subdomain.dynalinks.app/4vsz"
+}
+```
+
+### Example response:
+
+```json
+{
+  "path": "yourOriginalPath"
+}
+```
+
+---
+
+For more details about our REST API, please refer to the [API documentation](https://dynalinks.readme.io/reference/post_short-links).

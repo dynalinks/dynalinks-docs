@@ -1,0 +1,59 @@
+---
+title: "Root URL"
+---
+
+The Root URL is a fallback address, such as your website's home page, for visitors who land on your link domain without a matching link. Without it, these visitors see a 404 "Not Found" page.
+
+It applies to your Dynalinks subdomain (for example `your-app.dynalinks.app`) and to your [custom domain](/advanced/custom-domains) if you have one. You do not need a custom domain or the Pro plan to use it.
+
+## Setting the Root URL
+
+1. Open your project in the [Console](https://dynalinks.app/users/sign_in).
+2. Open the **Settings** menu and choose **Advanced Settings**. You need to be an owner or manager of the project.
+3. In the **Root URL** section, click **Edit Root URL**.
+4. Enter a complete URL, including `https://`, in **Fallback Root URL**. For example `https://example.com/home`.
+5. Click **Update Root URL**.
+
+The **Root URL** section in **Advanced Settings** shows the current value with a "Configured" badge. When nothing is set, it shows "Not configured" and "404 errors shown".
+
+To remove it, clear the field and click **Update Root URL**. Visitors will see the 404 page again.
+
+The URL must start with `http://` or `https://`. Leading and trailing spaces are removed when you save.
+
+## When visitors are redirected
+
+With a Root URL set, Dynalinks redirects visitors to it in two cases:
+
+1. **The bare domain.** Someone opens `https://links.example.com/` (or `https://your-app.dynalinks.app/`) with nothing after the slash.
+2. **A path with no matching link.** Someone opens `https://links.example.com/old-campaign` and no link in your project matches that path, even after Dynalinks applies your [query parameter settings](/advanced/query-params).
+
+The redirect always goes to the Root URL exactly as you entered it. The requested path and query string are not carried over.
+
+Links that exist are not affected. They work as usual, including the preview page, [fallback URLs](/fallbacks/fallback) and [forced redirect](/fallbacks/forced-redirect).
+
+## How it interacts with unnamed links
+
+[Unnamed links](/api/unnamed-links) also use the root path. They are built as `/` followed by query parameters, for example:
+
+```text
+https://links.example.com/?link=https://example.com/product/42&apn=com.example.app&ibi=com.example.app
+```
+
+Dynalinks decides what to do with a request for `/` based on its query string:
+
+| Request | Without a Root URL | With a Root URL |
+|:--------|:-------------------|:----------------|
+| `/` with no query string | 404 page | Redirect to the Root URL |
+| `/?link=...` (an unnamed link) | Handled as an unnamed link | Handled as an unnamed link |
+| `/?utm_source=newsletter` (query parameters, but no `link`) | 404 page | 404 page |
+
+So setting a Root URL never interferes with unnamed links. The flip side is the last row: a bare-domain visit that carries any query string, such as tracking parameters added by an ad platform or email tool, is treated as an unnamed link request. Without a `link` parameter it shows a 404 page, even when a Root URL is set.
+
+<Callout title="Note">
+If you share your bare domain in places that append tracking parameters, share your website's address instead, or create a regular link (for example `/home`) that points to it.
+</Callout>
+
+## What is not affected
+
+- `/.well-known/apple-app-site-association`, `/apple-app-site-association` and `/.well-known/assetlinks.json` are always served normally. See [Custom apple-app-site-association](/advanced/apple-app-site-association).
+- Universal Links and App Links that open your app directly are handled by your app, not by this setting.

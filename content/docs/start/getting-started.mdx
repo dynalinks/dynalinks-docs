@@ -1,0 +1,98 @@
+---
+title: "Getting started"
+---
+
+This guide takes you from a new account to a working link that opens your app on a phone. It takes a few minutes if you already have your app's bundle ID, Team ID and signing certificate fingerprint at hand.
+
+## 1. Create an account
+
+1. Go to [dynalinks.app/users/sign_up](https://dynalinks.app/users/sign_up) and fill in **Email**, **Password** and **Password confirmation**.
+2. Click **Sign up**.
+3. Open the confirmation email we send you and confirm your address. You can sign in to the [Console](https://dynalinks.app/console) after that.
+
+## 2. Create a project
+
+A project holds your links, your apps and your link domain. Most teams use one project per app (or per app and environment, for example production and staging).
+
+1. In the Console, click **Start new project**.
+2. Enter a **Name**.
+3. Enter a **Subdomain**. Your links will live at `https://{subdomain}.dynalinks.app`. The subdomain must be at least 4 characters and can contain lowercase letters, digits and hyphens.
+4. Click **Create Project**.
+
+You land on the project's **Dynamic Links** page. Every new project starts on the free Basic plan. See [Free and Pro plans](/start/plans) for what each plan includes.
+
+<Callout title="Note">
+You can add your own domain (for example `links.example.com`) later under **Settings > Custom Domain**. Custom domains require the Pro plan.
+</Callout>
+
+## 3. Register your app
+
+Links only open your app after the app is registered in the project and configured to trust your link domain. Register at least one app.
+
+### iOS
+
+1. Click **iOS Apps** in the top bar, then **Add new**.
+2. Fill in **App Bundle ID**, **Team ID** and **AppStore ID**.
+3. Click **Save iOS App**.
+4. In Xcode, add the Associated Domains capability with `applinks:{subdomain}.dynalinks.app`.
+
+The full walkthrough, including where to find each value, is in [iOS setup](/ios/setup).
+
+### Android
+
+1. Click **Android Apps** in the top bar, then **Add new**.
+2. Fill in **Package name** and at least one SHA-256 value under **SHA Certificate Fingerprints**. The debug certificate fingerprint is fine for testing.
+3. Click **Create Android app**.
+4. Add an intent filter with `android:autoVerify="true"` for `{subdomain}.dynalinks.app` to your `AndroidManifest.xml`.
+
+The full walkthrough is in [Android setup](/android/setup).
+
+Dynalinks publishes the domain association files your apps need (the Apple App Site Association file and the Android Digital Asset Links file) on your link domain automatically. You don't need to host anything yourself.
+
+## 4. Create your first link
+
+1. Click **Links** in the top bar, then **Add new**.
+2. Fill in the form:
+
+   | Field | What to enter |
+   |:------|:--------------|
+   | **Name** | A label for your own reference, for example "Spring promo". |
+   | **Url** | Where people go when they open the link on a desktop computer. Must start with `http://` or `https://`. |
+   | **Path** | The part after your domain, for example `products/5`. Letters, digits, hyphens and slashes are allowed. Your app receives this path, so use it to decide which screen to show. |
+   | **iOS app to open** | The iOS app you registered in step 3. |
+   | **Android app to open** | The Android app you registered in step 3. |
+
+3. Optionally fill in **Social title**, **Social description** and **Social image url** to control how the link previews when shared in chat apps and social networks.
+4. Click **Create Link**.
+
+Your link is now live at `https://{subdomain}.dynalinks.app/{path}`.
+
+The form also has fallback URLs and a forced redirect option. See [Fallback URLs](/fallbacks/fallback) and [Forced redirect](/fallbacks/forced-redirect) for what they do.
+
+<Callout title="Note">
+The Basic plan includes 100 links per project. Links you create through the [REST API](/api/authorization) count toward the same limit.
+</Callout>
+
+## 5. Test the link on a phone
+
+Send the link to your phone (for example in Messages, Notes or an email to yourself) and tap it there.
+
+| Situation | What happens |
+|:----------|:-------------|
+| App installed and domain configured correctly | The app opens directly. |
+| App not installed | A preview page with a button to the App Store or Google Play opens, or the browser goes straight to the store or your fallback URL if you set one up. |
+| Opened on a desktop computer | The browser redirects to the link's **Url**. |
+
+<Callout type="error" title="Important">
+On iOS, typing or pasting the link into Safari's address bar does not open the app. This is how Universal Links work on iOS. Tap the link from another app instead.
+</Callout>
+
+If the app does not open, work through [iOS debugging](/ios/debugging) or [Android debugging](/android/debugging). The most common causes are a typo in the bundle ID or Team ID, a missing SHA-256 fingerprint, or a domain mismatch in Associated Domains or the intent filter.
+
+## Next steps
+
+- **Handle the link in your app.** Read the incoming URL and route to the right screen. See [Receiving link in your app](/integrations/receiving-link-in-your-app).
+- **Add an SDK.** The SDKs resolve link data for you and support deferred deep linking (opening the right content after a fresh install). Pick yours: [iOS](/ios/sdk), [Android](/android/sdk), [Flutter](/flutter/sdk) or [React Native](/react-native/sdk).
+- **Set up deferred deep linking.** See [iOS](/deferred/deferred-ios) and [Android](/deferred/deferred-android).
+- **Create links in bulk.** Use the REST API. Start with [API authorization](/api/authorization).
+- **Coming from Firebase Dynamic Links?** See [Migrating from Firebase Dynamic Links](/start/firebase-migration).

@@ -1,0 +1,295 @@
+---
+title: "iOS SDK"
+---
+
+The Dynalinks iOS SDK provides **deferred deep linking** and **Universal Link handling** for your iOS app. It automatically matches users to their original link using device fingerprinting, without requiring any user interaction.
+
+## Features
+
+- **Deferred Deep Linking**: Automatically detect which link a user clicked before installing your app
+- **Universal Link Handling**: Resolve link data when your app is opened via Universal Link
+- **No User Interaction Required**: Fingerprint matching happens automatically
+- **Privacy Friendly**: Uses IDFV (no ATT permission required)
+
+## Requirements
+
+- iOS 16.0+
+- Swift 5.7+
+- Xcode 15.0+
+
+## Installation
+
+### Swift Package Manager
+
+Add the SDK to your project in Xcode:
+
+1. Go to **File > Add Package Dependencies**
+2. Enter: `https://github.com/dynalinks/dynalinks-ios-sdk`
+3. Select version and add to your target
+
+Or add to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/dynalinks/dynalinks-ios-sdk", from: "1.0.0")
+]
+```
+
+## Setup
+
+### 1. Configure the SDK
+
+Initialize the SDK as early as possible in your app's lifecycle.
+
+**SwiftUI:**
+
+```swift
+import DynalinksSDK
+
+@main
+struct MyApp: App {
+    init() {
+        do {
+            try Dynalinks.configure(clientAPIKey: "your-client-api-key")
+        } catch {
+            print("Failed to configure Dynalinks: \(error)")
+        }
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+```
+
+**UIKit:**
+
+```swift
+import DynalinksSDK
+
+@main
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        do {
+            try Dynalinks.configure(clientAPIKey: "your-client-api-key")
+        } catch {
+            print("Failed to configure Dynalinks: \(error)")
+        }
+        return true
+    }
+}
+```
+
+Get your **Client API Key** from the [Dynalinks Console](https://dynalinks.app/console) by navigating to your project's **Settings → Mobile SDK**.
+
+### 2. Configure Associated Domains
+
+For Universal Links to work, add your domain to **Signing & Capabilities** in Xcode:
+
+1. Select your app target
+2. Go to **Signing & Capabilities** tab
+3. Add **Associated Domains** capability
+4. Add: `applinks:yourproject.dynalinks.app`
+
+See [iOS Integration](/ios/setup) for detailed setup instructions.
+
+## Configuration Options
+
+```swift
+try Dynalinks.configure(
+    // Required: Your client API key from the Dynalinks console
+    clientAPIKey: "your-client-api-key",
+
+    // Custom API URL (optional, defaults to production)
+    baseURL: URL(string: "https://dynalinks.app/api/v1")!,
+
+    // Log level (optional)
+    // .debug - All logs (default in DEBUG builds)
+    // .info  - Info, warnings, and errors
+    // .warning - Warnings and errors
+    // .error - Errors only (default in RELEASE builds)
+    // .none  - No logging
+    logLevel: .debug,
+
+    // Allow checks on simulator (optional, defaults to false)
+    // Useful for development/testing
+    allowSimulator: true
+)
+```
+
+## Usage
+
+### Deferred Deep Links
+
+Check for deferred deep links on app launch:
+
+```swift
+.task {
+    do {
+        let result = try await Dynalinks.checkForDeferredDeepLink()
+        if result.matched, let link = result.link {
+            // Navigate to link.deepLinkValue
+            print("Deep link: \(link.deepLinkValue ?? "")")
+        }
+    } catch DynalinksError.simulator {
+        print("Running on simulator - skipped")
+    } catch {
+        print("Error: \(error)")
+    }
+}
+```
+
+**Completion Handler API** (for non-async contexts):
+
+```swift
+Dynalinks.checkForDeferredDeepLink { result in
+    switch result {
+    case .success(let deepLink):
+        if deepLink.matched, let link = deepLink.link {
+            handleDeepLink(link)
+        }
+    case .failure(let error):
+        print("Error: \(error)")
+    }
+}
+```
+
+### Universal Links
+
+Handle Universal Links when your app is opened directly:
+
+**SwiftUI:**
+
+```swift
+var body: some Scene {
+    WindowGroup {
+        ContentView()
+            .onOpenURL { url in
+                Task {
+                    do {
+                        let result = try await Dynalinks.handleUniversalLink(url: url)
+                        if result.matched, let link = result.link {
+                            // Navigate to link.deepLinkValue
+                        }
+                    } catch {
+                        print("Error: \(error)")
+                    }
+                }
+            }
+    }
+}
+```
+
+**UIKit (SceneDelegate):**
+
+```swift
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        guard let url = userActivity.webpageURL else { return }
+
+        Task {
+            do {
+                let result = try await Dynalinks.handleUniversalLink(url: url)
+                if result.matched, let link = result.link {
+                    // Navigate to destination
+                }
+            } catch {
+                print("Error: \(error)")
+            }
+        }
+    }
+}
+```
+
+## DeepLinkResult
+
+```swift
+public struct DeepLinkResult {
+    /// Whether a matching link was found
+    public let matched: Bool
+
+    /// Confidence level: .high, .medium, or .low
+    public let confidence: Confidence?
+
+    /// Match score (0-100)
+    public let matchScore: Int?
+
+    /// Link data if matched
+    public let link: LinkData?
+}
+
+public struct LinkData {
+    public let id: String              // Link UUID
+    public let name: String?           // Link name
+    public let path: String?           // Path component
+    public let url: URL?               // Original URL (with query params)
+    public let deepLinkValue: String?  // Deep link value for routing
+    // ... additional fields
+}
+```
+
+Query parameters are included in the `url` field. Parse them using `URLComponents`:
+
+```swift
+if let url = link.url,
+   let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+    let params = components.queryItems  // [URLQueryItem]
+}
+```
+
+## Error Handling
+
+```swift
+public enum DynalinksError: Error {
+    case notConfigured              // SDK not configured
+    case invalidAPIKey(String)      // API key is empty or invalid
+    case simulator                  // Running on simulator (disabled by default)
+    case networkError(underlying:)  // Network request failed
+    case invalidResponse            // Server returned invalid response
+    case serverError(statusCode:, message:)  // Server returned error status
+}
+```
+
+## How It Works
+
+### Deferred Deep Links
+
+1. User clicks a Dynalinks link (app not installed)
+2. Web page collects device fingerprint
+3. User installs app from App Store
+4. App calls `checkForDeferredDeepLink()`
+5. SDK sends device fingerprint to server
+6. Server matches fingerprints and returns original link
+
+### Universal Links
+
+1. User clicks a Dynalinks link (app installed)
+2. iOS opens your app directly via Universal Link
+3. App calls `handleUniversalLink(url:)`
+4. SDK resolves link data from server
+
+## Privacy & Apple App Store Compliance
+
+The SDK collects the following device information for fingerprint matching:
+
+- Screen dimensions and scale
+- iOS version
+- Timezone, calendar, language(s), and country code
+- Device model identifier
+- App version and build number
+- IDFV (Identifier for Vendor)
+
+What the SDK does **not** collect: IDFA, name, email, location, contacts, browser history, or any persistent cross-app identifier.
+
+The SDK does not request `ATTrackingManager` permission and does not meet Apple's definition of **Tracking** (no cross-company data joining, no data broker sharing, no targeted advertising). Web-side fingerprints are matched against app launches within a **10-minute, single-use** lookback window. That is enough for install attribution and deliberately too narrow for persistent profiling.
+
+For a full breakdown, including App Privacy Manifest guidance, ATT requirements and App Review talking points, see [iOS Privacy & Apple App Store Compliance](/ios/privacy-compliance).
+
+## More Information
+
+For complete API documentation and additional examples, see the [SDK README on GitHub](https://github.com/dynalinks/dynalinks-ios-sdk).

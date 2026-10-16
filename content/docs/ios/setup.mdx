@@ -1,0 +1,61 @@
+---
+title: "Setup"
+---
+
+### 1. Register your iOS app
+
+Head over to the [Dynalinks Console](https://dynalinks.app/console) and register your app:
+
+- **Bundle Identifier**: you'll find this in your **Xcode project settings**.
+- **Team ID**: locate it in your [Apple Developer account](https://developer.apple.com/account/ios/profile/) under **Provisioning Profiles**.
+- **App Store ID**: found in your app's App Store URL, e.g.:  
+  `https://itunes.apple.com/us/app/yourapp/id**123456789**`
+
+---
+
+### 2. Add the Associated Domain
+
+In Xcode, enable Universal Links by adding your Dynalinks domain under **Signing & Capabilities**:
+
+1. Open your Xcode project.
+2. Select your app target.
+3. Go to the **Signing & Capabilities** tab.
+4. Click **+ Capability** and add **Associated Domains**.
+5. Add this domain: `applinks:your-app.dynalinks.app`
+
+More info:  
+[Apple’s official guide to Associated Domains](https://developer.apple.com/documentation/xcode/supporting-associated-domains#Add-the-associated-domains-entitlement-to-your-app)
+
+---
+
+### React Native: setting up Associated Domains
+
+If you're building your app using **React Native**, you can still enable Universal Links with Dynalinks by adding the Associated Domains entitlement to your iOS app:
+
+#### Setup with `react-native` and `react-native-config`
+
+1. **Locate your Xcode project** in the `ios/` folder.
+2. Open `YourApp.xcworkspace` in **Xcode**.
+3. Select your app target, then go to the **Signing & Capabilities** tab.
+4. Click **+ Capability** and add **Associated Domains**.
+5. In the domain list, add:
+   ```
+   applinks:your-app.dynalinks.app
+   ```
+
+   Replace `your-app` with your actual subdomain registered on Dynalinks.
+
+---
+
+**Tip:** you can manage these domains via environment variables using [`react-native-config`](https://github.com/luggit/react-native-config) to differentiate between staging and production environments.
+
+That's it. Dynalinks can now open your app through Universal Links.
+
+---
+
+### Next step: add the iOS SDK
+
+Integrate the [iOS SDK](/ios/sdk) to:
+- Handle Universal Links with full link data resolution
+- Support deferred deep linking (users who install after clicking a link)
+- Get match confidence scores and analytics

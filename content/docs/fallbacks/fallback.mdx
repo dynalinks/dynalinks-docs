@@ -1,0 +1,43 @@
+---
+title: "Fallback URLs"
+---
+
+When creating a Dynalink, you can define platform-specific fallback URLs that will be used when the app is not installed on the user's device. These fields are especially useful in mobile web-to-app transitions in both native and **React Native** apps.
+
+Supported parameters:
+- **`android_fallback_url`**: used on Android devices when the app is not installed.
+- **`ios_fallback_url`**: used on iOS devices when the app is not installed.
+- **`url`**: used when the link is opened on a desktop browser.
+
+Example payload:
+```json
+{
+  "android_fallback_url": "https://example.com/android",
+  "ios_fallback_url": "https://example.com/ios",
+  "url": "https://example.com"
+}
+```
+
+## Using a Play Store URL as the Android fallback
+
+Fallback URLs are forwarded **verbatim**. If you point `android_fallback_url` at a Play Store listing, Dynalinks will **not** automatically append a `referrer` parameter, the link's UTM/referrer settings, or the encoded original URL. That only happens when Dynalinks builds the Play Store URL itself from a configured Android app on the link.
+
+If you want the install referrer to reach your app via the [Google Play Install Referrer API](https://developer.android.com/google/play/installreferrer), you have two options:
+
+**Option 1 (recommended): leave `android_fallback_url` blank**
+
+Configure the Android app on the link (`android_app` with a `package_name`) and Dynalinks will generate the Play Store URL for you, with the `referrer` parameter populated from the link's `referrer` field (and, if your project has *Include link in referrer* enabled, a base64-encoded copy of the original click URL as `_url`).
+
+**Option 2: include the `referrer` parameter yourself**
+
+If you need a custom Play Store fallback, add the `referrer` query parameter manually:
+
+```
+https://play.google.com/store/apps/details?id=com.example&referrer=utm_source%3Dnewsletter%26utm_campaign%3Dspring
+```
+
+The `referrer` value must be URL-encoded. Google preserves it through the install and exposes it to your app via the Install Referrer API.
+
+<Callout title="Note">
+The same rule applies to `ios_fallback_url`. If you point it at an App Store URL, Dynalinks does not append Apple Campaign Tracking parameters (`pt`, `ct`, `mt`). Those are only appended when Dynalinks builds the App Store URL itself from a configured iOS app on the link with `provider_token` and `campaign_token` set.
+</Callout>

@@ -1,0 +1,60 @@
+---
+title: "Named vs unnamed links"
+---
+
+Dynalinks supports two kinds of links:
+
+- **Named links** are created in the [Console](/links/creating-links) or with the [REST API](https://dynalinks.readme.io). Each one is saved in your project under its own path, for example `https://your-project.dynalinks.app/products/5`.
+- **Unnamed links** are not created anywhere. You build the URL yourself, with all settings passed as query parameters, for example `https://your-project.dynalinks.app/?link=https%3A%2F%2Fexample.com%2Fproducts%2F5&ibi=com.example.app&apn=com.example.app`. The parameters are listed in [Unnamed links](/api/unnamed-links).
+
+Both kinds open your app, fall back to the stores or your website, and show a preview page in the same way. The differences are in how they are managed and measured.
+
+---
+
+## Comparison
+
+| | Named links | Unnamed links |
+|---|---|---|
+| **How you create them** | Console or REST API | Build the URL yourself, no API call needed |
+| **URL** | `https://your-domain/{path}` | `https://your-domain/?link=...&ibi=...&apn=...` |
+| **Plan** | Basic (up to 100 links) and Pro (unlimited) | Pro only |
+| **Saved in your project** | Yes, listed under **Links** | No |
+| **Edit after sharing** | Yes, change the destination, apps, fallback URLs or social fields without changing the URL | No, the settings are part of the URL. To change them, share a new URL. |
+| **Click statistics** | Yes, per link | No |
+| **Installs in analytics** | Yes, for installs matched to the link | No |
+| **[Deferred deep linking](/deferred/deferred-ios)** | Yes | Yes |
+| **[Social previews](/links/social-previews)** | From the link's social fields | From the `st`, `sd` and `si` parameters |
+| **Choosing the app** | Pick a registered app in the link form | `ibi` and `apn` must match a bundle ID or package name registered in the project |
+| **[Fallback URLs](/fallbacks/fallback), [forced redirect](/fallbacks/forced-redirect)** | Link fields | `ifl`, `afl` and `efr` parameters |
+| **Android referrer, Apple campaign tokens** | Link fields (Pro) | `referrer`, `pt` and `ct` parameters |
+| **[Short URL](/api/link-shortening)** | Yes (Pro) | No |
+| **Custom domain** | Yes | Yes |
+
+---
+
+## Things to know about unnamed links
+
+- **Pro plan required.** If the project is not on Pro, opening an unnamed link shows a "This link is currently unavailable" page instead of redirecting.
+- **The app must be registered.** If neither `ibi` nor `apn` matches an app in your project (or both are missing), the visitor is redirected straight to the `link` URL, without opening your app or showing a preview page.
+- **The `link` parameter is required.** Without it, the URL returns "not found". It must be a full, URL-encoded `http://` or `https://` URL.
+- **Long URLs.** Every setting adds to the URL, so unnamed links can get long. Some apps and SMS clients truncate or wrap very long URLs, and long URLs make dense QR codes.
+
+---
+
+## When to use which
+
+**Use named links when:**
+
+- you share links in places you cannot update later, such as print, QR codes, emails or app store listings, and may need to change where they point,
+- you want click and install statistics per link,
+- you want short URLs from Dynalinks,
+- your team manages links in the Console,
+- you are on the Basic plan.
+
+**Use unnamed links when:**
+
+- you generate a large number of one-off links on the fly, for example a share link for every item in your app, and do not want to call the API for each one,
+- you are migrating from Firebase Dynamic Links and already build long links in that format (the parameter names match),
+- you do not need per-link statistics or the ability to edit a link after it is shared.
+
+If you generate links in code but still want statistics and editing, create named links with the API instead. The [`upsert` endpoint](https://dynalinks.readme.io/reference/post_links-upsert) creates a link or updates the existing one with the same path in a single call.

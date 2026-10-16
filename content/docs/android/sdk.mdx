@@ -1,0 +1,284 @@
+---
+title: "Android SDK"
+---
+
+The Dynalinks Android SDK provides **deferred deep linking** and **App Link handling** for your Android app. It uses the Google Play Install Referrer API to reliably match users to their original link.
+
+## Features
+
+- **Deferred Deep Linking**: Route users to specific content even when installing the app for the first time
+- **App Link Handling**: Handle direct app opens via Android App Links
+- **Kotlin Coroutines**: Modern async API with coroutine support
+- **Java Compatibility**: Callback-based API for Java projects
+
+## Requirements
+
+- Android 5.0+ (API level 21)
+- Kotlin 1.9+ or Java 8+
+
+## Installation
+
+Add JitPack repository to your root `build.gradle.kts` or `settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+Add the dependency to your app's `build.gradle.kts`:
+
+```kotlin
+dependencies {
+    implementation("com.github.dynalinks:dynalinks-android-sdk:1.0.3")
+}
+```
+
+## Setup
+
+### 1. Configure the SDK
+
+Initialize the SDK in your `Application` class:
+
+```kotlin
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+
+        Dynalinks.configure(
+            context = this,
+            clientAPIKey = "your-client-api-key"
+        )
+    }
+}
+```
+
+Get your **Client API Key** from the [Dynalinks Console](https://dynalinks.app/console) by navigating to your project's **Settings → Mobile SDK**.
+
+### 2. Configure App Links
+
+Add the following to your `AndroidManifest.xml`:
+
+```xml
+<activity android:name=".MainActivity">
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:scheme="https"
+            android:host="yourproject.dynalinks.app" />
+    </intent-filter>
+</activity>
+```
+
+The `assetlinks.json` file is automatically served by Dynalinks for your project domain.
+
+See [Android Integration](/android/setup) for detailed setup instructions.
+
+## Configuration Options
+
+```kotlin
+Dynalinks.configure(
+    // Required: Application context
+    context = applicationContext,
+
+    // Required: Your client API key from the Dynalinks console
+    clientAPIKey = "your-client-api-key",
+
+    // Custom API URL (optional, defaults to production)
+    baseURL = "https://dynalinks.app/api/v1",
+
+    // Log level (optional)
+    // NONE   - No logging
+    // ERROR  - Errors only (default)
+    // WARNING - Warnings and errors
+    // INFO   - Info, warnings, and errors
+    // DEBUG  - All logs including debug
+    logLevel = DynalinksLogLevel.DEBUG,
+
+    // Allow checks on emulator (optional, defaults to false)
+    // Useful for development/testing
+    allowEmulator = true
+)
+```
+
+## Usage
+
+### Deferred Deep Links
+
+Check for deferred deep links on app launch:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        lifecycleScope.launch {
+            try {
+                val result = Dynalinks.checkForDeferredDeepLink()
+                if (result.matched) {
+                    val deepLinkValue = result.link?.deepLinkValue
+                    // Navigate to the appropriate screen
+                    navigateToDeepLink(deepLinkValue)
+                }
+            } catch (e: DynalinksError.Emulator) {
+                Log.d("Dynalinks", "Running on emulator - skipped")
+            } catch (e: DynalinksError) {
+                Log.e("Dynalinks", "Error: ${e.message}")
+            }
+        }
+    }
+}
+```
+
+**Callback API** (for Java or non-coroutine contexts):
+
+```kotlin
+Dynalinks.checkForDeferredDeepLink(object : DynalinksCallback<DeepLinkResult> {
+    override fun onSuccess(result: DeepLinkResult) {
+        if (result.matched) {
+            navigateToDeepLink(result.link?.deepLinkValue)
+        }
+    }
+
+    override fun onError(error: DynalinksError) {
+        Log.e("Dynalinks", "Error: ${error.message}")
+    }
+})
+```
+
+### App Links
+
+Handle App Links when your app is opened directly:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleAppLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.let { handleAppLink(it) }
+    }
+
+    private fun handleAppLink(intent: Intent) {
+        if (intent.action == Intent.ACTION_VIEW && intent.data != null) {
+            lifecycleScope.launch {
+                try {
+                    val result = Dynalinks.handleAppLink(intent)
+                    if (result.matched) {
+                        navigateToDeepLink(result.link?.deepLinkValue)
+                    }
+                } catch (e: DynalinksError) {
+                    Log.e("Dynalinks", "Failed to handle App Link", e)
+                }
+            }
+        }
+    }
+}
+```
+
+## DeepLinkResult
+
+```kotlin
+data class DeepLinkResult(
+    // Whether a matching link was found
+    val matched: Boolean,
+
+    // Confidence level: HIGH, MEDIUM, or LOW
+    val confidence: Confidence?,
+
+    // Match score (0-100)
+    val matchScore: Int?,
+
+    // Link data if matched
+    val link: LinkData?,
+
+    // Whether this is from a deferred deep link
+    val isDeferred: Boolean
+)
+
+data class LinkData(
+    val id: String,              // Link UUID
+    val name: String?,           // Link name
+    val path: String?,           // Path component
+    val deepLinkValue: String?,  // Deep link value for routing
+    val fullUrl: String?,        // Complete Dynalinks URL
+    // ... additional fields
+)
+```
+
+## Error Handling
+
+```kotlin
+sealed class DynalinksError : Exception() {
+    object NotConfigured           // SDK not configured
+    data class InvalidAPIKey(msg)  // API key is empty or invalid
+    object Emulator                // Running on emulator (disabled by default)
+    object InvalidIntent           // Intent doesn't contain App Link data
+    data class NetworkError(cause) // Network request failed
+    object InvalidResponse         // Server returned invalid response
+    data class ServerError(code, msg)  // Server returned error status
+}
+```
+
+## Java Usage
+
+For Java projects, use the callback-based API:
+
+```java
+// Configure
+Dynalinks.configure(
+    getApplicationContext(),
+    "your-client-api-key",
+    "https://dynalinks.app/api/v1",
+    DynalinksLogLevel.ERROR,
+    false
+);
+
+// Check for deferred deep link
+Dynalinks.checkForDeferredDeepLink(new DynalinksCallback<DeepLinkResult>() {
+    @Override
+    public void onSuccess(DeepLinkResult result) {
+        if (result.getMatched()) {
+            String deepLinkValue = result.getLink().getDeepLinkValue();
+            // Navigate to content
+        }
+    }
+
+    @Override
+    public void onError(DynalinksError error) {
+        Log.e("Dynalinks", "Error: " + error.getMessage());
+    }
+});
+```
+
+## How It Works
+
+### Deferred Deep Links
+
+1. User clicks a Dynalinks link (app not installed)
+2. User is redirected to Google Play Store
+3. Play Store records the referrer URL
+4. User installs and opens the app
+5. App calls `checkForDeferredDeepLink()`
+6. SDK retrieves referrer from Play Install Referrer API
+7. Server returns original link data
+
+### App Links
+
+1. User clicks a Dynalinks link (app installed)
+2. Android opens your app directly via App Link
+3. App calls `handleAppLink(intent)`
+4. SDK resolves link data from server
+
+## More Information
+
+For complete API documentation and additional examples, see the [SDK README on GitHub](https://github.com/dynalinks/dynalinks-android-sdk).

@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@import "fumadocs-ui/css/neutral.css";
+@import "fumadocs-ui/css/preset.css";
+
+:root {
+  --color-fd-primary: #0d6efd;
+  --color-fd-primary-foreground: #ffffff;
+}
+
+.dark {
+  --color-fd-primary: #4d94ff;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+html > body[data-scroll-locked] {
+  /* biome-ignore lint/complexity/noImportantStyles: overrides the inline styles set by the scroll lock */
+  margin-right: 0px !important;
+  /* biome-ignore lint/complexity/noImportantStyles: overrides the inline styles set by the scroll lock */
+  --removed-body-scroll-bar-size: 0px !important;
+}

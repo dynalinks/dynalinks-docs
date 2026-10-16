@@ -1,0 +1,211 @@
+---
+title: "Creating links in the Console"
+---
+
+A link (also called a dynamic link) is a URL on your project's domain, for example `https://your-project.dynalinks.app/products/5`. When someone opens it, Dynalinks opens your app if it is installed, and otherwise sends them to the App Store, Google Play, a fallback URL or your website, depending on how the link is set up.
+
+This page walks through the link form in the Console. You can also create the same links with the [REST API](https://dynalinks.readme.io), or build them on the fly as [unnamed links](/api/unnamed-links). See [Named vs unnamed links](/links/named-vs-unnamed) for the differences.
+
+<Callout title="Note">
+Creating, editing, duplicating and deleting links requires the owner or manager role on the project. Viewers can browse the list and copy links. See [Team members & roles](/team/team-members).
+</Callout>
+
+---
+
+## Create a link
+
+1. Open your project in the [Console](https://dynalinks.app/console).
+2. Click **Links** in the top bar.
+3. Click **Add new**.
+4. Fill in the form (described below) and click **Create Link**.
+
+The form is split into sections: **Basic Information**, **Mobile Apps**, **Social Media**, **Marketing & Tracking** and **Advanced Settings**.
+
+<Callout title="Note">
+On the Basic plan a project can have up to 100 links. The Pro plan has no limit.
+</Callout>
+
+---
+
+## Basic Information
+
+### Name
+
+An internal label for the link, for example "Spring sale banner". It is shown in the links list and can be used to search. Visitors never see it. Links without a name appear as **Untitled** in the list.
+
+### Url
+
+The destination on the web. The hint in the form reads: "This link will be open if user clicks on the link on a desktop."
+
+It is also used:
+
+- on mobile, when the link has no iOS or Android app attached,
+- in the link's social preview tags (see [Social previews](/links/social-previews)).
+
+It must be a full `http://` or `https://` URL.
+
+### Path
+
+The part of the link after your domain. The form shows your domain in front of the field, for example `https://your-project.dynalinks.app/`, with `products/5` as the placeholder.
+
+Your iOS and Android apps receive the full link when it opens them, so you can read the path and take the user to the right screen. See [Receiving link in your app](/integrations/receiving-link-in-your-app).
+
+Path rules:
+
+- The path is required and must start with a letter, digit or hyphen. Do not type a leading `/`.
+- Stick to letters, digits and hyphens, with `/` between segments: `products/5`, `promo/spring-2026`.
+- You can add a query string at the end, for example `products?id=5`.
+- A trailing `/` is removed when you save.
+- Each path must be unique within the project.
+
+If your links carry extra query parameters (for example UTM tags added by an ad network), see [Supporting query params](/advanced/query-params) to control which ones are ignored when a link is looked up.
+
+### Shortened path
+
+<ProFeature message="URL shortening is only available on the Pro plan." />
+
+This field only appears when you edit an existing link. Click **Generate** next to it to create a short alternative path, such as `https://your-project.dynalinks.app/4vsz`. Both the full path and the shortened path open the same link.
+
+<Callout type="warn" title="Warning">
+Clicking **Generate** saves a new shortened path right away. If the link already had one, the old short URL stops working.
+</Callout>
+
+More in [URL shortening](/api/link-shortening).
+
+---
+
+## Mobile Apps
+
+### iOS app to open
+
+Pick one of the iOS apps registered in your project. The list shows bundle identifiers. Leave it at **None** if the link should not open an iOS app.
+
+### Android app to open
+
+Pick one of the Android apps registered in your project. The list shows package names. Leave it at **None** if the link should not open an Android app.
+
+If the project has no apps yet, the form shows **Add new iOS app** or **Add new Android app** buttons. Setup is described in [iOS setup](/ios/setup) and [Android setup](/android/setup).
+
+<Callout title="Note">
+If a link has neither an iOS nor an Android app, every visitor is sent to the **Url**, including on mobile.
+</Callout>
+
+---
+
+## Social Media
+
+These fields control how the link looks when it is shared in messaging apps and social networks.
+
+| Field | Used for |
+|---|---|
+| **Social title** | The preview title, and the page title of the link's preview page |
+| **Social description** | The preview description |
+| **Social image url** | The preview image. Must be a full `http://` or `https://` URL. |
+
+Details, tag names and image recommendations are in [Social previews](/links/social-previews).
+
+---
+
+## Marketing & Tracking
+
+### Referrer
+
+<ProFeature message="The referrer field is only available on the Pro plan." />
+
+A value passed to Google Play as the install referrer, for example `utm_source=google&utm_medium=banner`. Your Android app can read it after install through the [Google Play Install Referrer API](https://developer.android.com/google/play/installreferrer/library). It has no effect on iOS.
+
+It is only added when Dynalinks builds the Google Play URL itself. If you set an **Android fallback URL**, it is not added. See [Fallback URLs](/fallbacks/fallback#using-a-play-store-url-as-the-android-fallback).
+
+### Apple Provider Token and Apple Campaign Token
+
+<ProFeature message="Apple campaign tracking is only available on the Pro plan." />
+
+Tokens for [App Store campaign tracking](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns/) in App Store Connect:
+
+- **Apple Provider Token**: your provider token, for example `123456`.
+- **Apple Campaign Token**: a name for the campaign, for example `holiday2024`.
+
+The two must be used together. When both are set, Dynalinks adds them to the App Store URL it builds for the link. They are not added to an **iOS fallback URL**.
+
+---
+
+## Advanced Settings
+
+### Enable forced redirect
+
+When checked, users who do not have your app installed skip the preview page and go straight to the App Store or Google Play. See [Forced redirect](/fallbacks/forced-redirect).
+
+### iOS deferred deep linking
+
+The hint in the form reads: "If enabled, device fingerprint will be collected when the user taps "Download on App Store". Your iOS app can later retrieve the original link by matching the fingerprint via the SDK."
+
+This lets your app open the right content on first launch after install. See [iOS deferred deep linking](/deferred/deferred-ios). It relies on the preview page, so avoid combining it with forced redirect.
+
+### iOS fallback URL and Android fallback URL
+
+Where to send users who do not have the app installed, instead of the App Store or Google Play. Both must be full `http://` or `https://` URLs. See [Fallback URLs](/fallbacks/fallback).
+
+---
+
+## The links list
+
+**Links** in the top bar opens the list of links in the project. The header shows the total number of links.
+
+For each link you see:
+
+- **Name** (or **Untitled**),
+- **Path**, with the shortened path below it in green if the link has one,
+- **Clicks**,
+- **Created at**.
+
+Click a column header to sort by it. Use **Filters** to search by **Name** or **Path**. Both filters match any part of the value, and the list updates as you type. Click **Clear** to reset them.
+
+<Callout title="Note">
+If the project has links but no iOS or Android apps, the list shows a warning: links will not open your app on mobile until you add at least one app.
+</Callout>
+
+### Link actions
+
+Click the three dots at the end of a row to open the actions menu:
+
+| Action | What it does |
+|---|---|
+| **Copy Link** | Copies the full link URL |
+| **Copy Short Link** | Copies the short URL (only when the link has a shortened path) |
+| **Copy ID** | Copies the link's ID, which you need for API calls such as `GET /api/v1/links/{id}` |
+| **Edit** | Opens the link form |
+| **Duplicate** | Opens a new link form prefilled from this link |
+| **Delete** | Deletes the link |
+
+---
+
+## Edit a link
+
+Choose **Edit** in the actions menu, change the fields and click **Update Link**.
+
+The link URL stays the same unless you change the **Path**, so you can update the destination, apps, fallback URLs or social fields of a link that is already printed or shared.
+
+<Callout type="warn" title="Warning">
+Changing the **Path** changes the link's URL. Anyone using the old URL will no longer reach this link. The shortened path, if any, keeps working.
+</Callout>
+
+Messaging apps and social networks cache previews. After you change the social fields, see [Refreshing a preview](/links/social-previews#refreshing-a-preview).
+
+---
+
+## Duplicate a link
+
+Choose **Duplicate** in the actions menu. A new link form opens with all settings copied from the original link, except:
+
+- **Path**: empty, because each path must be unique,
+- **Shortened path**: not copied. You can generate one after you save the new link.
+
+Enter a path, adjust anything else, and click **Create Link**. The duplicate counts toward the link limit on the Basic plan.
+
+---
+
+## Delete a link
+
+Choose **Delete** in the actions menu and confirm. Deleting cannot be undone.
+
+After deletion, both the full and the shortened URL of the link return a "not found" response, unless you have set a root URL for the project in **Settings** > **Advanced Settings**, in which case visitors are redirected there.

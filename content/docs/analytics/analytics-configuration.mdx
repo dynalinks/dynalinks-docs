@@ -1,0 +1,108 @@
+---
+title: "Analytics configuration"
+---
+
+The **Analytics Configuration** page controls which tracking information Dynalinks passes on when it sends a visitor somewhere else. It has two settings:
+
+- **UTM Parameter Passing**: copies UTM parameters from the clicked link to the desktop redirect.
+- **Link in Referrer (Android)**: puts the clicked link into the Google Play referrer, which is what makes Android deferred deep linking work.
+
+Both settings apply to every link in the project and are disabled by default.
+
+To change them, open your project, go to **Settings** and choose **Analytics Configuration**. Each setting has its own **Edit Configuration** button. Only the project Owner and Managers can change these settings (see [Team members and roles](/team/team-members)).
+
+<Callout title="Note">
+Neither setting changes the **iOS fallback URL** or **Android fallback URL** of a link. Fallback URLs are always used exactly as you entered them. See [Fallback URLs](/fallbacks/fallback).
+</Callout>
+
+---
+
+## UTM Parameter Passing
+
+Setting: **Pass UTM parameters to desktop redirects**
+
+When this is enabled, any query parameter whose name starts with `utm_` (for example `utm_source`, `utm_medium`, `utm_campaign`) on the link a visitor opens is added to the link's **URL** when Dynalinks redirects to it. That way your website's analytics can still see which campaign the visitor came from.
+
+### When it applies
+
+The setting only affects redirects to the link's **URL** field. That happens when:
+
+- the link is opened on a desktop browser, or
+- the link has no iOS or Android app configured, so every visitor is sent to the **URL**.
+
+It does not affect the App Store or Google Play URLs, or the iOS and Android fallback URLs.
+
+### Examples
+
+Link **URL**: `https://www.example.com/`
+
+Visitor opens: `https://example.dynalinks.app/offers?utm_source=email&utm_campaign=spring2024`
+
+| Setting | Desktop redirect |
+|:--------|:-----------------|
+| Disabled | `https://www.example.com/` |
+| Enabled | `https://www.example.com/?utm_campaign=spring2024&utm_source=email` |
+
+Only `utm_` parameters are copied. Other parameters on the visited link, such as `?tab=deals`, are not passed on.
+
+If the link's **URL** already has query parameters, they are kept, and a parameter that already exists in the **URL** keeps its own value:
+
+Link **URL**: `https://www.example.com/spring?ref=site&utm_source=web`
+
+Visitor opens: `https://example.dynalinks.app/offers?utm_source=email&utm_campaign=spring2024`
+
+| Setting | Desktop redirect |
+|:--------|:-----------------|
+| Disabled | `https://www.example.com/spring?ref=site&utm_source=web` |
+| Enabled | `https://www.example.com/spring?ref=site&utm_campaign=spring2024&utm_source=web` |
+
+In this example `utm_source=web` from the **URL** wins over `utm_source=email` from the visited link, and `utm_campaign` is added. When parameters are added, the query string is rebuilt with the parameters in alphabetical order.
+
+---
+
+## Link in Referrer (Android)
+
+Setting: **Include full link URL in Play Store referrer parameter**
+
+When Dynalinks sends an Android user to Google Play, it builds the Play Store URL from the Android app configured on the link. Google Play hands the `referrer` value from that URL to your app after it is installed. This setting controls what goes into `referrer`.
+
+When it is enabled, Dynalinks encodes the exact link the user opened (including its query parameters) and puts it in `referrer` as `_url`. The Dynalinks Android SDK reads `_url` on first launch to deliver the [deferred deep link](/deferred/deferred-android) and to record the [installation](/analytics/analytics#what-counts-as-an-installation).
+
+<Callout type="error" title="Important">
+The Dynalinks Android SDK needs this setting to deliver deferred deep links. If you use the SDK on Android, enable it.
+</Callout>
+
+### What changes in the Play Store URL
+
+Assume an Android app with package name `com.example.app`, a link opened at `https://example.dynalinks.app/offers?utm_source=email`, and the link's **Referrer** field set to `utm_source=email&utm_campaign=spring`.
+
+**Disabled:** the **Referrer** field is used as is, and the link's address is added as a separate `url` parameter of the Play Store URL.
+
+```text
+https://play.google.com/store/apps/details?id=com.example.app&referrer=utm_source%3Demail%26utm_campaign%3Dspring&url=https%3A%2F%2Fexample.dynalinks.app%2Foffers
+```
+
+**Enabled:** `referrer` starts with `_url`, followed by the **Referrer** field. There is no separate `url` parameter.
+
+```text
+https://play.google.com/store/apps/details?id=com.example.app&referrer=_url%3DaHR0cHM6Ly9leGFtcGxlLmR5bmFsaW5rcy5hcHAvb2ZmZXJzP3V0bV9zb3VyY2U9ZW1haWw%26utm_source%3Demail%26utm_campaign%3Dspring
+```
+
+Decoded, the `referrer` value in the second URL is:
+
+```text
+_url=aHR0cHM6Ly9leGFtcGxlLmR5bmFsaW5rcy5hcHAvb2ZmZXJzP3V0bV9zb3VyY2U9ZW1haWw&utm_source=email&utm_campaign=spring
+```
+
+`aHR0cHM6...` is the URL-safe Base64 encoding (without padding) of `https://example.dynalinks.app/offers?utm_source=email`.
+
+A few details:
+
+- The `_url` value is the link exactly as the user opened it, so query parameters on the clicked link reach your app too.
+- Your **Referrer** field values (UTM or campaign parameters) are still included after `_url`. Any `_url=` or `url=` entries in the **Referrer** field are dropped, so they cannot conflict with the generated value.
+- If the **Referrer** field is empty, `referrer` only contains `_url`.
+- With the setting disabled and the **Referrer** field empty, the Play Store URL has no `referrer` parameter at all.
+
+### When it applies
+
+The setting only changes Play Store URLs that Dynalinks builds itself: the Google Play button on the link page, and the automatic redirect when [forced redirect](/fallbacks/forced-redirect) is enabled. If the link has an **Android fallback URL**, Android users are sent there instead and nothing is added to it. See [Using a Play Store URL as the Android fallback](/fallbacks/fallback#using-a-play-store-url-as-the-android-fallback) if you need a custom Play Store URL.

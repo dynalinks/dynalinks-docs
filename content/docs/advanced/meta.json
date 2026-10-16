@@ -1,0 +1,11 @@
+{
+  "title": "Advanced features",
+  "pages": [
+    "page-templates",
+    "query-params",
+    "appearance-settings",
+    "custom-domains",
+    "apple-app-site-association",
+    "root-url"
+  ]
+}

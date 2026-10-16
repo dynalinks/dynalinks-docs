@@ -1,0 +1,40 @@
+---
+title: "API authorization"
+---
+
+## Getting Your API Key
+
+To retrieve your API key:
+
+1. Go to your project's **Console**.
+2. Click on **Settings** in the top navigation bar.
+3. Open the **API Keys** tab.
+4. You'll see your default key, which has full access to all endpoints.  
+   You can also generate new keys with custom scopes by clicking **Create a new API key**.
+
+## Using Your API Key
+
+You can include your API key in requests in two ways:
+
+### Option 1: Query Parameter
+
+Append your API key as an `api_key` parameter in the URL:
+
+```bash
+curl --request POST \
+     --url https://dynalinks.app/api/v1/links?api_key=myApiKey \
+     --header 'Content-Type: application/json' \
+     --data '{"name": "Example Dynamic Link", "path": "examples/1", "url": "https://my-website.com/example"}'
+```
+
+### Option 2: Authorization Header
+
+Pass your API key in the request header as a `Authorization: Token myApiKey`:
+
+```bash
+curl --request POST \
+     --url https://dynalinks.app/api/v1/links \
+     --header 'Content-Type: application/json' \
+     --header 'Authorization: Token myApiKey' \
+     --data '{"name": "Example Dynamic Link", "path": "examples/1", "url": "https://my-website.com/example"}'
+```

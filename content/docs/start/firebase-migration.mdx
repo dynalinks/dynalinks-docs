@@ -1,0 +1,115 @@
+---
+title: "Migrating from Firebase Dynamic Links"
+---
+
+Google has shut down Firebase Dynamic Links. Dynalinks covers the same core use cases: links that open your app on iOS and Android, store and web fallbacks, social previews, and deferred deep linking after install. This page maps Firebase concepts to Dynalinks and walks through the migration.
+
+## How Firebase concepts map to Dynalinks
+
+| Firebase Dynamic Links | Dynalinks | Notes |
+|:-----------------------|:----------|:------|
+| Firebase project with a URL prefix such as `example.page.link` | A project with a subdomain such as `example.dynalinks.app` | Create one in the [Console](https://dynalinks.app/console). See [Getting started](/start/getting-started). |
+| Custom domain (for example `links.example.com`) | Custom domain under **Settings > Custom Domain** | Pro feature. Point the domain to Dynalinks with a DNS record and click **Verify domain**. |
+| iOS and Android apps added to the Firebase project | Apps registered under **iOS Apps** and **Android Apps** | See [iOS setup](/ios/setup) and [Android setup](/android/setup). |
+| Short links created in the Firebase console or with the REST API | Links with a **Path**, created in the Console or with the [REST API](/api/authorization) | Example: `https://example.dynalinks.app/spring-promo`. |
+| Short link suffix (`SHORT` option) | **Shortened path** | Pro feature. See [URL shortening](/api/link-shortening). |
+| Long links built manually (`?link=...&apn=...&ibi=...`) | [Unnamed links](/api/unnamed-links) | Pro feature. Same query parameter format, see the table below. |
+| Deep link (`link` parameter) | **Url** field on a link | Where desktop visitors are sent. Your app receives the Dynalinks URL and can read the link data through the SDK. |
+| Social meta tags (`st`, `sd`, `si`) | **Social title**, **Social description**, **Social image url** | Rendered as Open Graph and Twitter card tags. |
+| Fallback links (`ifl`, `afl`) | **iOS fallback URL**, **Android fallback URL** | See [Fallback URLs](/fallbacks/fallback). |
+| Skip the app preview page (`efr=1`) | **Enable forced redirect** | See [Forced redirect](/fallbacks/forced-redirect). |
+| App preview page | Dynalinks preview page | Shown when the app is not installed and forced redirect is off. |
+| iTunes Connect analytics (`pt`, `ct`) | **Apple Provider Token**, **Apple Campaign Token** | Pro feature. Dynalinks adds `mt=8` to the App Store URL for you. |
+| Google Play campaign attribution | **Referrer** field | Pro feature. Passed to Google Play as the install referrer. |
+| Firebase Dynamic Links SDK | Dynalinks [iOS](/ios/sdk), [Android](/android/sdk), [Flutter](/flutter/sdk) or [React Native](/react-native/sdk) SDK | Handles incoming links and deferred deep linking. |
+| Deferred deep linking (link survives the install) | Deferred deep linking through the SDKs | Pro feature. See [iOS](/deferred/deferred-ios) and [Android](/deferred/deferred-android). |
+| Click analytics in the Firebase console | **Analytics** tab in the Console | Basic shows the last 24 hours, Pro keeps longer history. See [Free and Pro plans](/start/plans). |
+
+## Long link parameters
+
+If you built Firebase links by hand, you can keep the same query string and change only the host. For example:
+
+```
+https://example.page.link/?link=https%3A%2F%2Fexample.com%2Fproducts%2F5&apn=com.example.app&ibi=com.example.app&st=Spring%20sale
+```
+
+becomes:
+
+```
+https://example.dynalinks.app/?link=https%3A%2F%2Fexample.com%2Fproducts%2F5&apn=com.example.app&ibi=com.example.app&st=Spring%20sale
+```
+
+<ProFeature message="Unnamed links (links built from query parameters) are only available on the Pro plan. On a Basic project, visitors see a page saying the link is unavailable." />
+
+These Firebase parameters are supported:
+
+| Parameter | Meaning | Notes |
+|:----------|:--------|:------|
+| `link` | The deep link. Desktop visitors are redirected here. | Required. Must be a URL-encoded `http` or `https` URL. |
+| `ibi` | iOS bundle ID of the app to open | Must match an iOS app registered in the project. Unknown values are ignored. |
+| `apn` | Android package name of the app to open | Must match an Android app registered in the project. Unknown values are ignored. |
+| `ifl` | Where to send iOS users who don't have the app | |
+| `afl` | Where to send Android users who don't have the app | |
+| `efr` | Skip the preview page and go straight to the store | Pass `1` or `true`. |
+| `st` | Social preview title | |
+| `sd` | Social preview description | |
+| `si` | Social preview image URL | |
+| `pt` | App Store provider token | Must be used together with `ct`. |
+| `ct` | App Store campaign token | Must be used together with `pt`. |
+
+If neither `ibi` nor `apn` matches a registered app, the visitor is redirected straight to `link` on every platform.
+
+Dynalinks also accepts two parameters that Firebase did not have: `referrer` (Google Play install referrer) and `ide` (iOS deferred deep linking). See [Unnamed links](/api/unnamed-links) for the full reference.
+
+These Firebase parameters are **not** supported and are ignored:
+
+| Parameter | What to do instead |
+|:----------|:-------------------|
+| `isi` (App Store ID) | Not needed. Dynalinks uses the **AppStore ID** of the iOS app registered in your project. |
+| `ofl` (fallback for other platforms) | Not needed. Desktop visitors always go to `link`. |
+| `amv`, `imv` (minimum app version) | Handle version checks in your app. |
+| `ius` (iOS custom scheme) | Use Universal Links. A **Custom URL Scheme** can be set on the iOS app for Facebook App Links tags. |
+| `ipbi`, `ipfl` (iPad-specific app and fallback) | There are no iPad-specific settings. Use `ibi` and `ifl`. |
+| `at`, `mt` | `mt` is added automatically when `pt` and `ct` are set. |
+| `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `gclid` | Put Android campaign data in `referrer`, for example `referrer=utm_source%3Dnewsletter%26utm_campaign%3Dspring`. |
+| `d=1` (debug flow diagram) | Not available. Use [iOS debugging](/ios/debugging) and [Android debugging](/android/debugging). |
+
+## Migration steps
+
+### 1. Create a project and register your apps
+
+Follow [Getting started](/start/getting-started) to create a project, pick a subdomain and register your iOS and Android apps. Use the same bundle ID, Team ID, package name and signing certificate fingerprints as in Firebase.
+
+### 2. Decide on a domain
+
+- **Your Firebase links used a `page.link` domain.** That domain belongs to Google, so links on it can't be moved. Use your Dynalinks subdomain (or a custom domain on Pro) and update the places where you share links.
+- **Your Firebase links used your own domain.** On Pro, add the same domain under **Settings > Custom Domain** and update its DNS record. Recreate your links with the same paths and existing URLs keep working.
+
+### 3. Update your app configuration
+
+- **iOS:** in **Signing & Capabilities > Associated Domains**, replace `applinks:example.page.link` with `applinks:{subdomain}.dynalinks.app` (or your custom domain). See [iOS setup](/ios/setup).
+- **Android:** in your intent filter, replace the `page.link` host with your Dynalinks domain. See [Android setup](/android/setup).
+
+You can keep the old entries until your users have updated to the new app version.
+
+### 4. Recreate your links
+
+- **Short links:** create them in the Console or in bulk with the REST API. The [upsert endpoint](/api/checking-if-link-exists) creates or updates a link in one call, which is convenient for imports. Paths can contain letters, digits, hyphens and slashes.
+- **Long links:** change the host as shown in [Long link parameters](#long-link-parameters). No import is needed.
+
+Remember that the Basic plan includes 100 links per project. Larger imports need Pro.
+
+### 5. Replace the Firebase SDK
+
+Remove the Firebase Dynamic Links SDK and add the Dynalinks SDK for your platform:
+
+- [iOS SDK](/ios/sdk)
+- [Android SDK](/android/sdk)
+- [Flutter SDK](/flutter/sdk)
+- [React Native SDK](/react-native/sdk)
+
+If you only need links to open the app and you read the URL yourself, no SDK is required. See [Receiving link in your app](/integrations/receiving-link-in-your-app).
+
+### 6. Test
+
+Tap a migrated link on a phone with the app installed and on one without it, and open it on a desktop browser. See [Test the link on a phone](/start/getting-started#5-test-the-link-on-a-phone).

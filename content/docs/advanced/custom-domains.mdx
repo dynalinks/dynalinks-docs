@@ -1,0 +1,152 @@
+---
+title: "Custom domains"
+---
+
+<ProFeature message="Custom domains are only available on the Pro plan." />
+
+By default, every project serves its links from a Dynalinks subdomain, for example `your-app.dynalinks.app/summer-sale`. With a custom domain, the same links are served from a domain you own, for example `links.example.com/summer-sale`.
+
+You can connect one custom domain per project.
+
+## Before you start
+
+- Your project must be on the Pro plan. On the Basic plan, adding a domain fails with the message "Custom domains are not available in free tier".
+- You need to be an owner or manager of the project.
+- You need access to the DNS settings at your domain provider.
+
+We recommend using a dedicated subdomain such as `links.example.com` or `go.example.com`. A subdomain keeps your links separate from your main website and is easier to point at Dynalinks. Root domains such as `example.com` are also accepted, see [Using a root domain](#using-a-root-domain).
+
+## Step 1: Add the domain in the Console
+
+1. Open your project in the [Console](https://dynalinks.app/users/sign_in).
+2. Open the **Settings** menu and choose **Custom Domain**.
+3. Enter your domain in the **Custom domain** field, without `https://` and without a path (for example `links.example.com`).
+4. Click **Add Custom Domain**.
+
+Dynalinks checks the domain format when you submit it. You will see an error if:
+
+- the value is not a valid domain name (for example it contains `https://`, a path, or spaces), or
+- the value is a public suffix that cannot belong to a single owner (for example `co.uk`). The error reads "cannot be used as a custom domain".
+
+Dynalinks also tries to verify the domain straight away. If your DNS record is already in place, the domain is verified immediately. Otherwise, the page shows the DNS record you need to create.
+
+## Step 2: Create the DNS record
+
+While the domain is not verified, the **Custom Domain** page shows the exact record to add. For a domain such as `links.example.com`, it looks like this:
+
+```text
+CNAME links.example.com cname.dynalinks.app
+```
+
+In your DNS provider, create a **CNAME** record:
+
+| Field | Value |
+|:------|:------|
+| Type | `CNAME` |
+| Name / Host | `links` (the part of your custom domain before your root domain; some providers want the full `links.example.com`) |
+| Target / Value / Points to | `cname.dynalinks.app` |
+
+If the CNAME record does not work for your setup, the page also shows an alternative **A** record that points your domain at a Dynalinks IP address. Use the exact IP address shown in the Console.
+
+<Callout title="Note">
+The Custom Domain page links to DNS guides for Squarespace, Namecheap and Wix. For other providers, search their help center for "add CNAME record".
+</Callout>
+
+### Tips for a smooth verification
+
+- Remove any other `A`, `AAAA` or `CNAME` records that exist for the same name. If you use the A record option, the domain must resolve only to the IP address shown in the Console.
+- If your DNS provider offers a proxy or CDN mode for records (for example Cloudflare's proxied "orange cloud" setting), turn it off for this record so it is served as plain DNS. Verification needs to see the record you created.
+
+### Using a root domain
+
+Most DNS providers do not allow a CNAME record on a root domain such as `example.com`. In that case, either:
+
+- use the **A** record shown in the Console, or
+- use your provider's CNAME flattening, `ALIAS` or `ANAME` record type, pointed at `cname.dynalinks.app`.
+
+Keep in mind that connecting a root domain sends all traffic for that domain to Dynalinks, so it cannot also host your website. A subdomain avoids this.
+
+## Step 3: Verify the domain
+
+After you add the DNS record, go back to **Settings** > **Custom Domain** and click **Verify domain**.
+
+- On success, you will see "Domain verification succeeded." and the page shows "Your domain ... is verified."
+- If the record is not visible yet, you will see "Domain verification failed. It may take a few hours for the DNS changes to propagate. Please try again later."
+
+DNS changes usually propagate within minutes, but can take up to 24 hours depending on your provider and the record's TTL. Verification only runs when you add the domain or click **Verify domain**, so come back and click the button again once the record has propagated.
+
+To abandon a domain that has not been verified yet, click **Cancel**. This removes the domain from the project so you can add a different one.
+
+## HTTPS
+
+You do not need to buy or upload a certificate. Once your domain is verified, Dynalinks provisions and renews an HTTPS certificate for it automatically. The first HTTPS request right after verification can take a few seconds while the certificate is issued. If your browser shows a certificate warning, wait a few minutes and try again.
+
+## What changes after verification
+
+### Your links
+
+All existing links are now available on your custom domain. In the Console, link URLs are shown and copied with your custom domain, for example `https://links.example.com/summer-sale`.
+
+Your Dynalinks subdomain keeps working. Links that you already shared as `your-app.dynalinks.app/...` continue to resolve, so nothing breaks for people who already have them.
+
+### iOS: Associated Domains
+
+Your custom domain serves its own `apple-app-site-association` file at `https://links.example.com/.well-known/apple-app-site-association`, listing the same apps as your Dynalinks subdomain.
+
+For Universal Links to open your app from the custom domain, add it to the **Associated Domains** capability in Xcode, next to your existing entry:
+
+```text
+applinks:links.example.com
+applinks:your-app.dynalinks.app
+```
+
+Keep the Dynalinks subdomain entry if you have links in circulation that use it. You need to ship a new app build for the change to take effect. See [iOS setup](/ios/setup) and, if links do not open the app, [iOS debugging](/ios/debugging).
+
+### Android: App Links intent filter
+
+Your custom domain also serves `https://links.example.com/.well-known/assetlinks.json`. Add the custom domain to the App Links intent filter in your `AndroidManifest.xml`:
+
+```xml
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+
+    <data android:scheme="https" android:host="links.example.com" />
+    <data android:scheme="https" android:host="your-app.dynalinks.app" />
+</intent-filter>
+```
+
+As with iOS, keep the Dynalinks subdomain if you still have links that use it, and release a new app build. See [Android setup](/android/setup) and [Android debugging](/android/debugging).
+
+### Root URL and unknown links
+
+Visiting the bare custom domain (`https://links.example.com/`) or a path that does not match a link shows a 404 page by default. To send these visitors somewhere useful, such as your website, set a [Root URL](/advanced/root-url).
+
+## Changing or unlinking your domain
+
+To disconnect a verified domain, go to **Settings** > **Custom Domain** and click **Unlink domain**, then confirm.
+
+- Your links stop working on the custom domain immediately. They keep working on your Dynalinks subdomain.
+- Remove the CNAME (or A) record from your DNS settings.
+- Remove the domain from your iOS Associated Domains and Android intent filter in your next app release.
+
+There is no separate "change domain" action. To switch to a different domain, unlink the current one and add the new one.
+
+## Limitations
+
+- **One domain per project.** Each project can have a single custom domain. To serve links from several domains, use separate projects.
+- **A domain belongs to one account.** Once you verify a domain, it is reserved for your account. If the same domain was already verified by another Dynalinks account, verification fails even when your DNS record is correct. If you believe you should own the domain, [email us](mailto:admins@dynalinks.app).
+- **Pro plan required to keep serving.** If your project leaves the Pro plan, the custom domain stops serving links and the Console falls back to showing your Dynalinks subdomain. Your links keep working on the subdomain. While a project has a custom domain set but no Pro plan, its **Project Details** cannot be edited, so renew the subscription or unlink the domain first.
+
+## Troubleshooting
+
+| Problem | What to check |
+|:--------|:--------------|
+| "Domain verification failed" | Wait for DNS propagation and click **Verify domain** again. Check the record with a DNS lookup tool: a CNAME lookup for your domain should return `cname.dynalinks.app`. |
+| Verification keeps failing with the right record | Make sure there are no extra `A` or `AAAA` records for the name and that any DNS proxy or CDN mode is off. The domain may also be reserved by another account, in which case contact us. |
+| Certificate warning in the browser | Wait a few minutes after verification for the certificate to be issued. |
+| Links open in the browser instead of the app | Add the custom domain to your app's Associated Domains (iOS) and intent filter (Android), and install a build that includes the change. |
+
+If you get stuck, [send us an email](mailto:admins@dynalinks.app).

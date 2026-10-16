@@ -1,0 +1,289 @@
+---
+title: "iOS and Android apps API"
+---
+
+Your project's iOS and Android apps tell Dynalinks which app should open your links. They drive the `apple-app-site-association` and `assetlinks.json` files served on your domain, and the App Store and Google Play redirects for users who do not have the app installed.
+
+You can manage them in the console, or with the endpoints on this page. They are useful when you provision projects automatically, rotate an Android signing certificate, or keep app settings in sync with your own configuration.
+
+These endpoints follow the conventions described in [API basics](/api/api-basics): the same base URL, authentication, pagination and error format.
+
+---
+
+## Before you start
+
+- Use a project API key from **Settings** > **API Keys**. The apps belong to that key's project.
+- If the key has custom scopes, it needs the matching ones: `ios_apps.index`, `ios_apps.show`, `ios_apps.create`, `ios_apps.update`, `ios_apps.destroy`, and the same five for `android_apps`.
+- Reading apps requires **Viewer** access to the project. Creating, updating and deleting apps requires **Manager** or **Owner** access. See [Team members & roles](/team/team-members).
+
+---
+
+## Endpoints
+
+| Method | Path | Description |
+|:-------|:-----|:------------|
+| `GET` | `/api/v1/ios_apps` | List iOS apps |
+| `POST` | `/api/v1/ios_apps` | Create an iOS app |
+| `GET` | `/api/v1/ios_apps/:id` | Get one iOS app |
+| `PATCH` | `/api/v1/ios_apps/:id` | Update an iOS app |
+| `DELETE` | `/api/v1/ios_apps/:id` | Delete an iOS app |
+| `GET` | `/api/v1/android_apps` | List Android apps |
+| `POST` | `/api/v1/android_apps` | Create an Android app |
+| `GET` | `/api/v1/android_apps/:id` | Get one Android app |
+| `PATCH` | `/api/v1/android_apps/:id` | Update an Android app |
+| `DELETE` | `/api/v1/android_apps/:id` | Delete an Android app |
+
+`:id` is the app's `id` (a UUID) from the create or list response, not its bundle ID or package name.
+
+---
+
+## iOS apps
+
+### Fields
+
+| Field | Required | Description |
+|:------|:---------|:------------|
+| `bundle_id` | Yes | Your app's bundle identifier, for example `com.example.app`. Must be unique within the project. |
+| `team_id` | Yes | Your 10-character Apple Developer Team ID. |
+| `app_store_id` | No | The numeric App Store ID, used to send users without the app to the App Store. Anything that is not a digit is removed, so `id1234567890` is stored as `1234567890`. |
+| `name` | No | A display name for the app. |
+| `clip_bundle_id` | No | Your App Clip's bundle identifier, if you have one. If you include the Team ID prefix (`ABCDE12345.com.example.app.Clip`), it is removed. |
+| `custom_scheme` | No | Your app's custom URL scheme, for example `myapp`. A trailing `://` is removed. Used in the app link metadata of your link preview pages. |
+
+The response also contains `id`.
+
+### Create an iOS app
+
+Send the fields inside an `ios_app` object:
+
+```bash
+curl --request POST https://dynalinks.app/api/v1/ios_apps \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "ios_app": {
+      "name": "Example",
+      "bundle_id": "com.example.app",
+      "team_id": "ABCDE12345",
+      "app_store_id": "1234567890"
+    }
+  }'
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "id": "6b1f2c3d-8e4a-4f5b-9c7d-2a1e0f3b4c5d",
+  "name": "Example",
+  "bundle_id": "com.example.app",
+  "team_id": "ABCDE12345",
+  "app_store_id": "1234567890",
+  "clip_bundle_id": null,
+  "custom_scheme": null
+}
+```
+
+### Update an iOS app
+
+Send only the fields you want to change. Fields you leave out keep their current value.
+
+```bash
+curl --request PATCH https://dynalinks.app/api/v1/ios_apps/6b1f2c3d-8e4a-4f5b-9c7d-2a1e0f3b4c5d \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{"ios_app": {"custom_scheme": "exampleapp"}}'
+```
+
+The response (`200 OK`) contains the full updated app.
+
+---
+
+## Android apps
+
+### Fields
+
+| Field | Required | Description |
+|:------|:---------|:------------|
+| `package_name` | Yes | Your app's package name (`applicationId`), for example `com.example.app`. Must be unique within the project. |
+| `fingerprints` | Yes | An array of SHA-256 signing certificate fingerprints, at least one. |
+| `name` | No | A display name for the app. |
+| `custom_scheme` | No | Your app's custom URL scheme, for example `myapp`. A trailing `://` is removed. Used in the app link metadata of your link preview pages. |
+
+The response also contains `id`.
+
+Each fingerprint must be written as pairs of hexadecimal characters separated by colons, the format printed by `keytool` and `./gradlew signingReport`:
+
+```
+14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5
+```
+
+Fingerprints are stored in upper case, and empty entries are dropped.
+
+<Callout type="error" title="Important">
+If you use Play App Signing, Google re-signs your app before distributing it. Add the **app signing key** fingerprint from the **App integrity** page of the Play Console, not only your upload key. You can list several fingerprints, for example for both your debug and release builds.
+</Callout>
+
+### Create an Android app
+
+Send the fields inside an `android_app` object:
+
+```bash
+curl --request POST https://dynalinks.app/api/v1/android_apps \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "android_app": {
+      "name": "Example",
+      "package_name": "com.example.app",
+      "fingerprints": [
+        "14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5"
+      ]
+    }
+  }'
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "id": "0e9d8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b",
+  "name": "Example",
+  "package_name": "com.example.app",
+  "fingerprints": [
+    "14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5"
+  ],
+  "custom_scheme": null
+}
+```
+
+### Update an Android app
+
+Send only the fields you want to change. When you send `fingerprints`, the array **replaces** the existing list, so include every fingerprint you want to keep:
+
+```bash
+curl --request PATCH https://dynalinks.app/api/v1/android_apps/0e9d8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "android_app": {
+      "fingerprints": [
+        "14:6D:E9:83:C5:73:06:50:D8:EE:B9:95:2F:34:FC:64:16:A0:83:42:E6:1D:BE:A8:8A:04:96:B2:3F:CF:44:E5",
+        "A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90:A1:B2:C3:D4:E5:F6:07:18:29:3A:4B:5C:6D:7E:8F:90"
+      ]
+    }
+  }'
+```
+
+The response (`200 OK`) contains the full updated app.
+
+---
+
+## Listing apps
+
+```bash
+curl https://dynalinks.app/api/v1/ios_apps \
+  --header 'Authorization: Token YOUR_API_KEY'
+```
+
+```json
+{
+  "ios_apps": [
+    {
+      "id": "6b1f2c3d-8e4a-4f5b-9c7d-2a1e0f3b4c5d",
+      "name": "Example",
+      "bundle_id": "com.example.app",
+      "team_id": "ABCDE12345",
+      "app_store_id": "1234567890",
+      "clip_bundle_id": null,
+      "custom_scheme": "exampleapp"
+    }
+  ],
+  "meta": { "page": 1, "limit": 20, "count": 1, "last": 1, "from": 1, "to": 1 }
+}
+```
+
+`GET /api/v1/android_apps` works the same way and returns an `android_apps` array.
+
+Lists support `page` and `limit` (see [Pagination](/api/api-basics#pagination)) and filters in the `q` parameter (see [Filtering and sorting](/api/api-basics#filtering-and-sorting)). You can filter on these fields:
+
+| iOS apps | Android apps |
+|:---------|:-------------|
+| `name`, `bundle_id`, `team_id`, `clip_bundle_id`, `custom_scheme`, `created_at` | `name`, `package_name`, `custom_scheme`, `created_at` |
+
+For example, to find an app by its bundle ID:
+
+```bash
+curl --get https://dynalinks.app/api/v1/ios_apps \
+  --header 'Authorization: Token YOUR_API_KEY' \
+  --data-urlencode 'q[bundle_id_eq]=com.example.app'
+```
+
+---
+
+## Getting one app
+
+```bash
+curl https://dynalinks.app/api/v1/android_apps/0e9d8c7b-6a5f-4e3d-8c2b-1a0f9e8d7c6b \
+  --header 'Authorization: Token YOUR_API_KEY'
+```
+
+Returns the app (`200 OK`), or `404 Not Found` if the `id` does not exist in the key's project.
+
+---
+
+## Deleting an app
+
+```bash
+curl --request DELETE https://dynalinks.app/api/v1/ios_apps/6b1f2c3d-8e4a-4f5b-9c7d-2a1e0f3b4c5d \
+  --header 'Authorization: Token YOUR_API_KEY'
+```
+
+A successful delete returns `204 No Content` with an empty body.
+
+<Callout type="warn" title="Warning">
+Links that used the deleted app are kept, but they are no longer associated with any app. They stop opening that app and stop redirecting to its store page until you assign another app to them. The app is also removed from your domain's association file, so iOS or Android stops treating your links as belonging to it.
+</Callout>
+
+---
+
+## Validation errors
+
+When the data is invalid, the API responds with `422 Unprocessable Content` and lists every problem in a single `error` message:
+
+```json
+{
+  "error": "Bundle is invalid, Bundle can't be blank, and Team is the wrong length (should be 10 characters)"
+}
+```
+
+Common messages:
+
+| Message | Cause |
+|:--------|:------|
+| `Bundle can't be blank` | `bundle_id` is missing or empty. |
+| `Bundle is invalid` | `bundle_id` is not a valid bundle identifier. Use letters, digits, hyphens and dots. |
+| `Bundle has already been taken` | The project already has an iOS app with this bundle ID. Update that app instead. |
+| `Team is the wrong length (should be 10 characters)` | `team_id` is missing or is not exactly 10 characters. |
+| `Clip bundle is invalid` | `clip_bundle_id` is not a valid bundle identifier. |
+| `Package name can't be blank` | `package_name` is missing or empty. |
+| `Package name is invalid` | `package_name` is not a valid Android package name. It needs at least two segments separated by dots, each starting with a letter (for example `com.example`). |
+| `Package name has already been taken` | The project already has an Android app with this package name. |
+| `Fingerprints can't be blank` | `fingerprints` is missing or contains no non-empty values. |
+| `Fingerprints is invalid` | A fingerprint is not written as colon-separated hexadecimal pairs. Fingerprints without colons are rejected. |
+
+Other errors:
+
+- `400 Bad Request` if the body has no `ios_app` / `android_app` object, the body is not valid JSON, or `Content-Type` is not `application/json`.
+- `401 Unauthorized` if the key is invalid, lacks the required scope, or its owner does not have the required role.
+- `404 Not Found` with `{"error": "iOS app not found"}` or `{"error": "Android app not found"}` for an unknown `id`.
+- `429 Too Many Requests` if you exceed the rate limit of 600 create, update and delete requests per minute (shared per key for iOS apps, and separately for Android apps).
+
+---
+
+## Related
+
+- [iOS setup](/ios/setup) and [Android setup](/android/setup)
+- [Custom apple-app-site-association](/advanced/apple-app-site-association)
+- [Android debugging](/android/debugging), if links do not open your app after you change fingerprints
+- Full reference: [dynalinks.readme.io](https://dynalinks.readme.io)
