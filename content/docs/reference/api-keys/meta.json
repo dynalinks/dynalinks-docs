@@ -1,0 +1,11 @@
+{
+  "title": "API keys",
+  "pages": [
+    "list-api-keys",
+    "create-api-key",
+    "get-api-key",
+    "update-api-key",
+    "delete-api-key",
+    "..."
+  ]
+}

@@ -7,6 +7,7 @@
     "get-link",
     "update-link",
     "delete-link",
+    "get-link-qr-code",
     "..."
   ]
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { test } from "node:test";
 import { BASE_PATH, OUT, outFileFor, ROOT, readOut, walk } from "./helpers.mjs";
@@ -12,6 +12,7 @@ export const REFERENCE_PAGES = {
     "get-link",
     "update-link",
     "delete-link",
+    "get-link-qr-code",
   ],
   "short-links": ["create-short-link", "resolve-short-link"],
   "ios-apps": [
@@ -28,33 +29,61 @@ export const REFERENCE_PAGES = {
     "update-android-app",
     "delete-android-app",
   ],
+  "api-keys": [
+    "list-api-keys",
+    "create-api-key",
+    "get-api-key",
+    "update-api-key",
+    "delete-api-key",
+  ],
+  projects: [
+    "list-projects",
+    "create-project",
+    "get-project",
+    "update-project",
+    "delete-project",
+    "verify-project-custom-domain",
+  ],
+  "page-templates": [
+    "get-page-template",
+    "update-page-template",
+    "publish-page-template",
+    "unpublish-page-template",
+    "preview-page-template",
+    "list-page-template-versions",
+    "get-page-template-version",
+    "restore-page-template-version",
+  ],
 };
 
 const referenceUrls = Object.entries(REFERENCE_PAGES).flatMap(
   ([group, pages]) => pages.map((page) => `/reference/${group}/${page}`),
 );
 
-test("all 18 public operations have a page", () => {
-  assert.equal(referenceUrls.length, 18);
+test("every public operation has a page", () => {
+  assert.equal(referenceUrls.length, 38);
   assert.ok(outFileFor("/reference"), "no /reference overview page");
   for (const url of referenceUrls) {
     assert.ok(outFileFor(url), `no page for ${url}`);
   }
-});
-
-test("no internal operations", () => {
-  const dir = join(OUT, "reference");
-  assert.ok(existsSync(dir), "out/reference is missing");
-  const leaked = walk(dir)
-    .map((file) => relative(OUT, file))
-    .filter((file) => /project|api-key|page-template|qr/.test(file));
-  assert.deepEqual(leaked, []);
+  const llms = readFileSync(join(OUT, "llms.txt"), "utf8");
+  for (const url of referenceUrls) {
+    assert.ok(llms.includes(`](${url})`), `${url} is missing from llms.txt`);
+  }
 });
 
 // Closed sidebar folders aren't rendered, so each group is checked from its own first page.
 test("reference pages are in the sidebar under display names", () => {
   const html = readOut(outFileFor("/reference/links/list-links"));
-  for (const name of ["Links", "Short links", "iOS apps", "Android apps"]) {
+  for (const name of [
+    "Links",
+    "Short links",
+    "iOS apps",
+    "Android apps",
+    "API keys",
+    "Projects",
+    "Page templates",
+  ]) {
     assert.ok(html.includes(`>${name}<`), `sidebar is missing ${name}`);
   }
   for (const [group, pages] of Object.entries(REFERENCE_PAGES)) {

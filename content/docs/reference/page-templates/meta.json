@@ -1,0 +1,14 @@
+{
+  "title": "Page templates",
+  "pages": [
+    "get-page-template",
+    "update-page-template",
+    "publish-page-template",
+    "unpublish-page-template",
+    "preview-page-template",
+    "list-page-template-versions",
+    "get-page-template-version",
+    "restore-page-template-version",
+    "..."
+  ]
+}

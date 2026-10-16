@@ -2,5 +2,14 @@
   "title": "API reference",
   "description": "Every endpoint, with Try it",
   "root": true,
-  "pages": ["links", "short-links", "ios-apps", "android-apps", "..."]
+  "pages": [
+    "links",
+    "short-links",
+    "ios-apps",
+    "android-apps",
+    "api-keys",
+    "projects",
+    "page-templates",
+    "..."
+  ]
 }
