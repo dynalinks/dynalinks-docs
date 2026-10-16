@@ -237,12 +237,14 @@ test("every group shows its tag's description", async () => {
     const description = bySlug.get(group);
     assert.ok(description, `the spec has no description for the ${group} tag`);
 
-    const shown = callouts(
-      readOut(outFileFor(`/reference/${group}/${pages[0]}`)),
-    );
-    assert.ok(
-      shown.some((text) => text.includes(description)),
-      `${group}'s pages do not show "${description}"`,
-    );
+    for (const page of pages) {
+      const shown = callouts(
+        readOut(outFileFor(`/reference/${group}/${page}`)),
+      );
+      assert.ok(
+        shown.some((text) => text.includes(description)),
+        `/reference/${group}/${page} does not show "${description}"`,
+      );
+    }
   }
 });
