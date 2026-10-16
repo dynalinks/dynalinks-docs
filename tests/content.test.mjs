@@ -109,7 +109,9 @@ test("the authorization guide covers master keys", () => {
 test("the page-template guide points at the API reference", () => {
   const html = readOut(outFileFor("/advanced/page-templates"));
   assert.ok(
-    html.includes(`href="${BASE_PATH}/reference/page-templates/get-page-template"`),
+    html.includes(
+      `href="${BASE_PATH}/reference/page-templates/get-page-template"`,
+    ),
     "the page-template guide does not link to the reference",
   );
 });

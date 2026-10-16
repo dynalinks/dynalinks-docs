@@ -7,7 +7,10 @@ export const OPENAPI_URL =
 type SpecTag = { name: string; description?: string };
 
 // CI builds from a URL; the local dev loop points OPENAPI_URL at a JSON file.
-async function readSpec(): Promise<{ paths?: Record<string, unknown>; tags?: SpecTag[] }> {
+async function readSpec(): Promise<{
+  paths?: Record<string, unknown>;
+  tags?: SpecTag[];
+}> {
   if (/^https?:\/\//.test(OPENAPI_URL)) {
     const response = await fetch(OPENAPI_URL);
     if (!response.ok) {

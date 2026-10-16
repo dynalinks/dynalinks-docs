@@ -98,13 +98,17 @@ test("reference pages are in the sidebar under display names", () => {
 });
 
 // The server comes from the spec the site was built from: staging on PRs, production on main.
-async function expectedServer() {
+async function loadSpec() {
   const source =
     process.env.OPENAPI_URL ?? "https://dynalinks.app/api/v1/openapi.json";
-  const spec = /^https?:/.test(source)
+
+  return /^https?:/.test(source)
     ? await (await fetch(source)).json()
     : JSON.parse(readFileSync(source, "utf8"));
-  return spec.servers[0].url;
+}
+
+async function expectedServer() {
+  return (await loadSpec()).servers[0].url;
 }
 
 test("Try it targets the spec's server without a proxy", async () => {
@@ -173,10 +177,17 @@ test("overview documents the same auth header as the guides", () => {
 });
 
 // The whole spec rides along inside every page as JSON, so "the text appears
-// in the HTML" proves nothing. These are the callouts the reader sees.
+// in the HTML" proves nothing. These are the callouts the reader sees, with the
+// entities React escapes decoded back.
 function callouts(html) {
   return [...html.matchAll(/prose-no-margin empty:hidden">([^<]*)</g)].map(
-    ([, text]) => text,
+    ([, text]) =>
+      text
+        .replaceAll("&#x27;", "'")
+        .replaceAll("&quot;", '"')
+        .replaceAll("&lt;", "<")
+        .replaceAll("&gt;", ">")
+        .replaceAll("&amp;", "&"),
   );
 }
 
@@ -188,7 +199,9 @@ test("every group explains who can call it", () => {
   };
   for (const [group, note] of Object.entries(notes)) {
     for (const page of REFERENCE_PAGES[group]) {
-      const shown = callouts(readOut(outFileFor(`/reference/${group}/${page}`)));
+      const shown = callouts(
+        readOut(outFileFor(`/reference/${group}/${page}`)),
+      );
       assert.ok(
         shown.some((text) => text.includes(note)),
         `${group}/${page} shows no callout with "${note}"`,
@@ -208,12 +221,28 @@ test("every group explains who can call it", () => {
   }
 });
 
-test("the existing groups keep their own one-liner", () => {
-  const shown = callouts(readOut(outFileFor("/reference/links/list-links")));
-  assert.ok(
-    shown.some((text) =>
-      text.includes("Create, update, look up and delete dynamic links."),
-    ),
-    "Links pages show no group note",
+// Every group's note must be the description of its tag in the spec the site
+// was built from: a tag that loses its description would leave its pages with
+// no note at all, and only this test would say so.
+test("every group shows its tag's description", async () => {
+  const spec = await loadSpec();
+  const bySlug = new Map(
+    (spec.tags ?? []).map((tag) => [
+      tag.name.toLowerCase().replace(/\s+/g, "-"),
+      tag.description,
+    ]),
   );
+
+  for (const [group, pages] of Object.entries(REFERENCE_PAGES)) {
+    const description = bySlug.get(group);
+    assert.ok(description, `the spec has no description for the ${group} tag`);
+
+    const shown = callouts(
+      readOut(outFileFor(`/reference/${group}/${pages[0]}`)),
+    );
+    assert.ok(
+      shown.some((text) => text.includes(description)),
+      `${group}'s pages do not show "${description}"`,
+    );
+  }
 });
