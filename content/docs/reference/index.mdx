@@ -1,0 +1,21 @@
+---
+title: API reference
+description: Every endpoint of the Dynalinks REST API, with code samples and a "Try it" console.
+---
+
+All endpoints live under this base URL:
+
+```
+https://dynalinks.app/api/v1
+```
+
+Requests are authenticated with your project's API key, sent as `Authorization: Bearer <key>`. See [API authorization](/api/authorization) for how to create a key.
+
+The OpenAPI spec this reference is built from is public at [`https://dynalinks.app/api/v1/openapi.json`](https://dynalinks.app/api/v1/openapi.json). Import it into Postman, Insomnia or a client generator.
+
+## Endpoints
+
+- [Links](/reference/links/list-links): create, update, look up and delete dynamic links.
+- [Short links](/reference/short-links/create-short-link): shorten long URLs and resolve short links.
+- [iOS apps](/reference/ios-apps/list-ios-apps): manage the iOS apps that links open.
+- [Android apps](/reference/android-apps/list-android-apps): manage the Android apps that links open.

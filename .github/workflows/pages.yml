@@ -41,11 +41,13 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          OPENAPI_URL: ${{ github.event_name == 'pull_request' && 'https://dynalinks.ovh/api/v1/openapi.json' || 'https://dynalinks.app/api/v1/openapi.json' }}
 
       - name: Test
         run: npm test
         env:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          OPENAPI_URL: ${{ github.event_name == 'pull_request' && 'https://dynalinks.ovh/api/v1/openapi.json' || 'https://dynalinks.app/api/v1/openapi.json' }}
 
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'

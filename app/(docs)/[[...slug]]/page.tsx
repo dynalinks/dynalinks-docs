@@ -9,6 +9,7 @@ import {
 import { createRelativeLink } from "fumadocs-ui/mdx";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { OpenAPIPage } from "@/components/api-page";
 import { getMDXComponents } from "@/components/mdx";
 import { getPageImageUrl, getPageMarkdownUrl } from "@/lib/shared";
 import { source } from "@/lib/source";
@@ -17,6 +18,17 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) notFound();
+
+  if (page.type === "openapi") {
+    return (
+      <DocsPage full>
+        <DocsTitle>{page.data.title}</DocsTitle>
+        <DocsBody>
+          <OpenAPIPage {...page.data.getOpenAPIPageProps()} />
+        </DocsBody>
+      </DocsPage>
+    );
+  }
 
   const MDX = page.data.body;
   const markdownUrl = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${getPageMarkdownUrl(page).url}`;

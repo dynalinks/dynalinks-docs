@@ -1,0 +1,11 @@
+{
+  "title": "Android apps",
+  "pages": [
+    "list-android-apps",
+    "create-android-app",
+    "get-android-app",
+    "update-android-app",
+    "delete-android-app",
+    "..."
+  ]
+}
