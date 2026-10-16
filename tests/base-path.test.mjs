@@ -28,6 +28,11 @@ test("every root-relative URL carries the base path", { skip }, () => {
   assert.deepEqual(unprefixed, []);
 });
 
+test("markdown actions use the base path", { skip }, () => {
+  const html = readOut(outFileFor("/start/plans"));
+  assert.match(html, /markdownUrl\\":\\"\/dynalinks-docs\/llms\.mdx\//);
+});
+
 test("search loads its index from the base path", { skip }, () => {
   const bundles = walk(join(OUT, "_next", "static"), (file) =>
     file.endsWith(".js"),

@@ -5,12 +5,6 @@ export const docsRoute = "/";
 export const docsImageRoute = "/og";
 export const docsContentRoute = "/llms.mdx";
 
-export const gitConfig = {
-  user: "dynalinks",
-  repo: "dynalinks-docs",
-  branch: "main",
-};
-
 const getContentUrl = createGetUrl(docsContentRoute);
 
 export function getPageMarkdownUrl(page: { slugs: string[]; locale?: string }) {

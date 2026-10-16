@@ -38,6 +38,16 @@ test("brand colour is set", () => {
   );
 });
 
+test("no links into the private docs repo", () => {
+  for (const file of outHtmlFiles()) {
+    assert.doesNotMatch(
+      readOut(file),
+      /github\.com\/dynalinks\/dynalinks-docs/,
+      `${file} links to the private repo`,
+    );
+  }
+});
+
 test("no external font or icon CDN", () => {
   for (const file of outHtmlFiles()) {
     const html = readOut(file);

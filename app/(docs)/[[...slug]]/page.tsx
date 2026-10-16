@@ -10,7 +10,7 @@ import { createRelativeLink } from "fumadocs-ui/mdx";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/components/mdx";
-import { getPageImageUrl, getPageMarkdownUrl, gitConfig } from "@/lib/shared";
+import { getPageImageUrl, getPageMarkdownUrl } from "@/lib/shared";
 import { source } from "@/lib/source";
 
 export default async function Page(props: PageProps<"/[[...slug]]">) {
@@ -19,7 +19,7 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
   if (!page) notFound();
 
   const MDX = page.data.body;
-  const markdownUrl = getPageMarkdownUrl(page).url;
+  const markdownUrl = `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}${getPageMarkdownUrl(page).url}`;
 
   return (
     <DocsPage toc={page.data.toc} full={page.data.full}>
@@ -29,10 +29,7 @@ export default async function Page(props: PageProps<"/[[...slug]]">) {
       </DocsDescription>
       <div className="flex flex-row gap-2 items-center border-b pb-6">
         <MarkdownCopyButton markdownUrl={markdownUrl} />
-        <ViewOptionsPopover
-          markdownUrl={markdownUrl}
-          githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/content/docs/${page.path}`}
-        />
+        <ViewOptionsPopover markdownUrl={markdownUrl} />
       </div>
       <DocsBody>
         <MDX
