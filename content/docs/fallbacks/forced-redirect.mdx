@@ -1,0 +1,25 @@
+---
+title: "Forced redirect"
+---
+
+When a user **does not have your app installed**, they'll be shown a **preview page** like this:
+
+![Preview](/img/preview.jpg)
+
+---
+
+## Disable the preview page
+
+If you'd rather send users directly to the App Store instead of showing the preview, enable **Forced Redirect**.  
+You can do this by setting the `enable_forced_redirect` flag when creating your link:
+
+```json
+{
+  "enable_forced_redirect": true
+}
+```
+
+<Callout>
+**Important for iOS**
+Keep in mind that you need preview page if you want to use [deferred deep linking on iOS](/deferred/deferred-ios).
+</Callout>

@@ -1,0 +1,119 @@
+---
+title: "Android Deferred Deep Linking"
+---
+
+Dynalinks offers **two methods** for Android deferred deep linking, giving you flexibility in how you handle app installations from links.
+
+| Method | Complexity | Best For |
+|--------|------------|----------|
+| [Android SDK](#method-1-dynalinks-android-sdk) | Simple | Full SDK integration with automatic handling |
+| [Manual Integration](#method-2-manual-install-referrer) | Advanced | Custom implementations |
+
+---
+
+## Method 1: Dynalinks Android SDK
+
+The Dynalinks Android SDK provides automatic deferred deep linking using the Google Play Install Referrer API. It handles all the complexity of referrer retrieval and link attribution for you.
+
+### Installation
+
+Add the SDK via JitPack:
+
+```kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
+// app/build.gradle.kts
+dependencies {
+    implementation("com.github.dynalinks:dynalinks-android-sdk:1.0.3")
+}
+```
+
+### Quick Start
+
+```kotlin
+// Configure on app launch (Application.onCreate)
+Dynalinks.configure(
+    context = this,
+    clientAPIKey = "your-client-api-key"
+)
+
+// Check for deferred deep link (MainActivity)
+lifecycleScope.launch {
+    val result = Dynalinks.checkForDeferredDeepLink()
+    if (result.matched) {
+        navigateToDeepLink(result.link?.deepLinkValue)
+    }
+}
+```
+
+### Advantages
+
+- Automatic Install Referrer handling
+- Built-in retry logic with exponential backoff
+- Also handles App Links via `handleAppLink(intent)`
+- Java callback API available
+
+Full documentation: [Android SDK Integration Guide](/android/sdk)
+
+---
+
+## Method 2: Manual Install Referrer
+
+For custom implementations, you can directly use the Google Play Install Referrer API.
+
+You can create a deferred deep link with an additional `referrer` parameter. This value can be passed either through the Dynalinks console when creating the link or via the Dynalinks REST API.
+
+Once the user installs your app through the Play Store, you can retrieve the `referrer` value using [Google Play Install Referrer Library](https://developer.android.com/google/play/installreferrer/library). Here's how to read it:
+ 
+1. Add the dependency in your `build.gradle`:
+   ```groovy
+   implementation 'com.android.installreferrer:installreferrer:2.2'
+   ```
+ 
+2. Read the referrer in your app code:
+   ```kotlin
+   private lateinit var referrerClient: InstallReferrerClient
+   
+   referrerClient = InstallReferrerClient.newBuilder(this).build()
+   referrerClient.startConnection(object : InstallReferrerStateListener {
+
+    override fun onInstallReferrerSetupFinished(responseCode: Int) {
+        when (responseCode) {
+            InstallReferrerResponse.OK -> {
+                // Connection established.
+            }
+            InstallReferrerResponse.FEATURE_NOT_SUPPORTED -> {
+                // API not available on the current Play Store app.
+            }
+            InstallReferrerResponse.SERVICE_UNAVAILABLE -> {
+                // Connection couldn't be established.
+            }
+        }
+    }
+
+    override fun onInstallReferrerServiceDisconnected() {
+        // Try to restart the connection on the next request to
+        // Google Play by calling the startConnection() method.
+    }
+})
+   ```
+   
+After you have established a connection to the Play Store app, get the details from the install referrer by completing the following steps:
+```kotlin
+   val response: ReferrerDetails = referrerClient.installReferrer
+   val referrerUrl: String = response.installReferrer
+   val referrerClickTime: Long = response.referrerClickTimestampSeconds
+   val appInstallTime: Long = response.installBeginTimestampSeconds
+   val instantExperienceLaunched: Boolean = response.googlePlayInstantParam
+```
+ 
+If you're using **React Native**, there's a dedicated package that wraps this functionality: [`react-native-play-install-referrer`](https://www.npmjs.com/package/react-native-play-install-referrer). You can install it via npm and follow the instructions in the README to access the referrer data from JavaScript.
+ 
+This lets you persist attribution or campaign info from a deferred link.
+
+

@@ -1,0 +1,144 @@
+---
+title: "Custom apple-app-site-association"
+---
+
+iOS uses the `apple-app-site-association` (AASA) file on your link domain to decide which apps may open which URLs as Universal Links. Dynalinks generates this file for you from the iOS apps registered in your project. For most projects the generated file is all you need.
+
+If you need finer control, you can replace it with your own JSON in **Advanced Settings**.
+
+<Callout type="warn" title="Warning">
+A custom AASA file fully replaces the one Dynalinks generates. If it is malformed or lists the wrong app IDs, Universal Links stop opening your app for every link in the project.
+</Callout>
+
+## Where the file is served
+
+Dynalinks serves the file at both standard locations, on your Dynalinks subdomain and on your [custom domain](/advanced/custom-domains) if you have one:
+
+```text
+https://your-app.dynalinks.app/.well-known/apple-app-site-association
+https://your-app.dynalinks.app/apple-app-site-association
+https://links.example.com/.well-known/apple-app-site-association
+https://links.example.com/apple-app-site-association
+```
+
+Open one of these URLs in a browser to see exactly what iOS will receive.
+
+## The default file
+
+When no custom file is set, Dynalinks builds the file from the iOS apps in your project. Each app is listed as `<Team ID>.<Bundle ID>`, and every path on your domain is matched:
+
+```json
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "ABCDE12345.com.example.app"
+        ],
+        "components": [
+          {
+            "/": "*",
+            "comment": "Matches any URL"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+If an iOS app in your project has an App Clip bundle ID, the default file also includes an `appclips` section:
+
+```json
+"appclips": {
+  "apps": [
+    "ABCDE12345.com.example.app.Clip"
+  ]
+}
+```
+
+The default file updates automatically when you add, edit or remove iOS apps. See [iOS setup](/ios/setup) for registering your app.
+
+## When to use a custom file
+
+Consider a custom file when the default does not fit, for example:
+
+- **Different apps for different paths.** Route `/shop/*` to one app and `/support/*` to another.
+- **Excluding paths.** Keep some URLs on your domain opening in the browser instead of the app.
+- **Extra AASA sections.** Add sections Dynalinks does not generate, such as `webcredentials` for password autofill.
+
+If none of these apply, leave the setting empty and let Dynalinks manage the file.
+
+## Setting a custom file
+
+1. Open your project in the [Console](https://dynalinks.app/users/sign_in).
+2. Open the **Settings** menu and choose **Advanced Settings**. You need to be an owner or manager of the project.
+3. In the **Apple App Site Association (AASA)** section, click **Edit AASA Configuration**.
+4. Paste the complete file into **AASA JSON Configuration**.
+5. Click **Save AASA Configuration**.
+
+After saving, the **Apple App Site Association (AASA)** section shows "Custom AASA configured". When no custom file is set, it shows "Using default configuration".
+
+### How the custom file is applied
+
+- **It replaces the default, it is not merged.** Dynalinks serves your JSON as you entered it. Apps registered in the project are not added automatically, so your file must include every app ID and App Clip that should work with your links.
+- **It applies to every domain of the project.** The same file is served on your Dynalinks subdomain and on your custom domain.
+- **Clearing it restores the default.** Empty the field and save to go back to the generated file.
+
+### Validation
+
+Dynalinks only checks that the content is valid JSON. If it is not, the form shows "must be valid JSON" and nothing is saved.
+
+It does not check that the file follows Apple's format, that the app IDs are correct, or that the paths match your links. Review the file carefully before saving.
+
+## Example
+
+This file sends `/buy/*` and `/products/*` links to one app, sends `/support/*` links to a second app, and keeps `/blog/*` links in the browser:
+
+```json
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [ "ABCDE12345.com.example.app" ],
+        "components": [
+          {
+            "/": "/blog/*",
+            "exclude": true,
+            "comment": "Keep blog links in the browser"
+          },
+          {
+            "/": "/buy/*",
+            "comment": "Matches any URL with a path that starts with /buy/"
+          },
+          {
+            "/": "/products/*",
+            "comment": "Matches any URL with a path that starts with /products/"
+          }
+        ]
+      },
+      {
+        "appIDs": [ "ABCDE12345.com.example.app2" ],
+        "components": [
+          {
+            "/": "/support/*",
+            "comment": "Matches any URL with a path that starts with /support/"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Replace `ABCDE12345` with your Apple Team ID and the bundle IDs with your own. iOS checks components in order and uses the first match, so put `exclude` rules before broader patterns. Apple documents the full format in [Supporting associated domains](https://developer.apple.com/documentation/xcode/supporting-associated-domains).
+
+## Testing your changes
+
+iOS does not fetch the file on every link tap. Devices download it when the app is installed or updated, and Apple caches it, so changes can take a while to reach devices.
+
+1. Open `https://your-app.dynalinks.app/.well-known/apple-app-site-association` and check that it shows your new JSON.
+2. On a test device, delete and reinstall the app to fetch the new file. During development, you can use `applinks:your-app.dynalinks.app?mode=developer` in your Associated Domains to skip Apple's cache.
+3. Tap a link from Notes or Messages (not by typing it into Safari's address bar) to check that it opens the app.
+
+If links stop opening your app, clear the field to restore the default file, then follow [iOS debugging](/ios/debugging).

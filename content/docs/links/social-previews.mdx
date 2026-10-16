@@ -1,0 +1,106 @@
+---
+title: "Social previews"
+---
+
+When you paste a link into iMessage, WhatsApp, Slack, X, Facebook, LinkedIn or most other apps, the app fetches the link and builds a preview card from the page's meta tags. Dynalinks renders these tags for every link from three fields:
+
+- **Social title**
+- **Social description**
+- **Social image url**
+
+You set them in the **Social Media** section of the link form (see [Creating links in the Console](/links/creating-links#social-media)), with the `social_title`, `social_description` and `social_image_url` fields in the [REST API](https://dynalinks.readme.io), or with the `st`, `sd` and `si` parameters of an [unnamed link](/api/unnamed-links).
+
+---
+
+## Which tags are rendered
+
+| Field | Tags |
+|---|---|
+| **Social title** | `og:title`, `twitter:title`, `twitter:text:title`, and the page `<title>` |
+| **Social description** | `og:description`, `twitter:description`, and `<meta name="description">` |
+| **Social image url** | `og:image`, `twitter:image` |
+| **Url** (the link's destination) | `og:url` |
+
+Every link also gets `twitter:card` set to `summary_large_image`, so X and other apps that read Twitter Card tags show a large image when one is available.
+
+Link pages also carry `<meta name="robots" content="noindex, nofollow">`, so search engines do not index them.
+
+The preview tags are part of the page itself, so they are also served for links with [forced redirect](/fallbacks/forced-redirect) or [fallback URLs](/fallbacks/fallback). The redirect only happens in a real browser, after the page has loaded. Requests from known bots and preview crawlers are not counted as clicks.
+
+The social image is also shown on the link's preview page (the page users see when the app is not installed) and is used as the page icon.
+
+---
+
+## When fields are empty
+
+Dynalinks does not fill in empty fields from your website or app. If a field is empty, the matching tags are rendered with empty values and each app falls back to its own default:
+
+- **No title**: most apps show the link's domain or the bare URL instead of a title.
+- **No description**: the preview shows only the title, or no text at all.
+- **No image**: the preview has no image, or a small generic card. Some apps show nothing but the URL.
+
+For links you plan to share publicly, fill in all three fields.
+
+<Callout title="Note">
+`og:url` is set to the link's **Url**. Facebook treats `og:url` as the canonical address of the page and may build the preview from that page instead. If a Facebook preview shows your website's title and image rather than the link's social fields, check the result in the [Sharing Debugger](https://developers.facebook.com/tools/debug/).
+</Callout>
+
+---
+
+## Image recommendations
+
+Dynalinks only checks that the image URL is a valid `http://` or `https://` URL. It does not resize or host the image. Each app downloads it from your URL.
+
+- **Size**: 1200 x 630 px (an aspect ratio of about 1.91:1) works well across Facebook, LinkedIn, X, Slack and iMessage.
+- **Format**: JPEG or PNG. Avoid SVG, which most apps do not show in previews.
+- **File size**: keep it small, ideally a few hundred KB. Some messaging apps skip large images.
+- **Hosting**: use a public `https://` URL that returns the image directly, without login, redirects to an HTML page, or hotlink protection.
+- **Safe area**: keep important content in the center. Some apps crop the image to a square or a smaller rectangle.
+- **Stable URL**: if you change the image, use a new file name. Apps cache images by URL, so replacing the file at the same address may not update existing previews.
+
+---
+
+## App-related meta tags
+
+Besides the social tags, link pages can include tags that help other apps open your mobile app. You control them per project in **Settings** > **Advanced Settings** > **Edit Appearance Settings**.
+
+### Apple Smart App Banner
+
+If the link's iOS app has an App Store ID, the page includes an `apple-itunes-app` tag. Safari on iOS uses it to show a Smart App Banner at the top of the page. If the iOS app also has an App Clip configured, the tag points to the App Clip as well.
+
+To turn the banner off for all links in the project, check **Hide Apple iTunes App meta tag**.
+
+### Facebook App Links
+
+The page includes [App Links](https://developers.facebook.com/docs/applinks) tags such as `al:ios:app_store_id`, `al:ios:app_name`, `al:android:package`, `al:android:app_name` and `al:web:url`. When your app has a custom URL scheme set, `al:ios:url` and `al:android:url` are added too. Some apps use these tags to open your app directly from a shared link.
+
+To remove these tags for all links in the project, check **Disable Facebook App Links meta tags**.
+
+<Callout title="Note">
+These two settings only affect the app-related tags. The social preview tags (`og:*`, `twitter:*` and the description) are always rendered.
+</Callout>
+
+---
+
+## Refreshing a preview
+
+Apps cache previews, often for days. After you edit a link's social fields, people who already received the link may keep seeing the old preview. New shares pick up the change once the app's cache expires, or sooner if you ask the app to refetch:
+
+| App | How to refresh |
+|---|---|
+| Facebook, Messenger | Paste the link into the [Sharing Debugger](https://developers.facebook.com/tools/debug/) and click **Scrape Again**. |
+| LinkedIn | Paste the link into the [Post Inspector](https://www.linkedin.com/post-inspector/). |
+| X | X refreshes previews on its own, usually within about a week. Compose a new post to check the current preview. |
+| Slack | Slack caches previews for about 30 minutes. To force a new one, share the link with a throwaway query string, for example `?v=2`. |
+| WhatsApp | There is no refresh tool. A query string such as `?v=2` makes WhatsApp treat it as a new URL. |
+| iMessage | Previews are generated on the sender's device when the message is written. Send the link again in a new message. |
+
+<Callout title="Note">
+Adding a query string like `?v=2` changes the URL Dynalinks receives. Check that the link still resolves correctly, or add the parameter to your ignored query parameters. See [Supporting query params](/advanced/query-params).
+</Callout>
+
+---
+
+## Custom preview pages
+
+The preview page itself (shown when the app is not installed) uses a standard layout. Custom designs will be possible with [page templates](/advanced/page-templates), which are coming soon. The social preview tags described on this page stay in place when you use a template.

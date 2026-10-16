@@ -1,0 +1,35 @@
+---
+title: "Checking if path is taken"
+---
+
+You used to need to check if a path was taken before creating a link. This is no longer needed.
+
+We now support an [`upsert` endpoint](https://dynalinks.readme.io/reference/post_links-upsert) that lets you create or update links in a single step.  
+If the path already exists, the link will be updated automatically, so you don't need a separate `q[path_eq]` check.
+
+However, if you still want to proactively check for conflicts, here’s how:
+
+If you try to create a link with a path that’s already taken, the API will respond with a `422` error.   
+To avoid this, you can proactively check whether a given path is already in use.
+  
+Use the `q[path_eq]` query parameter in the [get links](https://dynalinks.readme.io/reference/get_links) request:
+```
+/api/v1/links?q[path_eq]=myPath
+```
+In response, you will get a list of links that match the path:
+```json
+{
+    "links": [
+        {
+            "id": "0196c8fc-3dde-7902-857f-8f115346324d",
+            "name": "My Link",
+        }
+    ],
+    "meta": {
+        "page": 1,
+        "count": 1,
+        "limit": 20
+    }
+}
+```
+If the `links` array is empty, the path is available. Otherwise, it’s already taken.

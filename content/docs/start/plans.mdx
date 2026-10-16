@@ -1,0 +1,89 @@
+---
+title: "Free and Pro plans"
+---
+
+Dynalinks has two self-service plans: **Basic**, which is free, and **Pro**. Plans apply to a single project, not to your whole account. Each project has its own plan, so you can run one project on Pro and keep others on Basic.
+
+Current prices are always listed on the [pricing page](https://dynalinks.app/pricing).
+
+## Compare plans
+
+| | Basic | Pro |
+|:--|:--|:--|
+| Price | Free | $14.99 per project per month, or billed yearly at a 10% discount ($13.49 per month) |
+| Links per project | 100 | Unlimited |
+| Link domain | `{subdomain}.dynalinks.app` | `{subdomain}.dynalinks.app` or your own custom domain |
+| iOS and Android app linking | Yes | Yes |
+| Social preview (title, description, image) | Yes | Yes |
+| Fallback URLs and forced redirect | Yes | Yes |
+| Analytics | Last 24 hours | Up to 2 years of history (7 days, 30 days, 90 days, 1 year, all time) |
+| [Unnamed links](/api/unnamed-links) | No | Yes |
+| [URL shortening](/api/link-shortening) | No | Yes |
+| Deferred deep linking ([iOS](/deferred/deferred-ios), [Android](/deferred/deferred-android)) | No | Yes |
+| [Team members](/team/team-members) | No | Unlimited collaborators |
+| **Referrer** field (Android install referrer) | No | Yes |
+| **Apple Provider Token** and **Apple Campaign Token** (App Store campaign tracking) | No | Yes |
+
+Prices are in US dollars.
+
+## Basic plan limits
+
+A Basic project can hold up to 100 links. Links created in the Console and through the [REST API](/api/authorization) both count toward the limit. We email the project owner when the project reaches 50%, 75% and 100% of the limit.
+
+When the limit is reached, creating a new link fails until you delete existing links or upgrade the project to Pro. Existing links keep working.
+
+On Basic projects, the **Generate** button for **Shortened path** and the Apple token fields open an **Upgrade to Pro Required** dialog instead. Saving a link that uses any Pro-only field fails until the project is upgraded.
+
+## Free trial
+
+A project that has never had a subscription gets a 30-day free trial of Pro. You are not charged until the trial ends, and you can cancel at any time during the trial. The trial end date is shown on the project's **Subscription** page.
+
+A project that had a subscription before upgrades without a trial.
+
+## Upgrade a project to Pro
+
+Only the project **Owner** can manage the subscription. Managers and Viewers see the plan but cannot change it.
+
+1. Open the project in the [Console](https://dynalinks.app/console).
+2. Click the **Upgrade to Pro** badge next to the project name, or open **Settings > Subscription**.
+3. Choose **Monthly** or **Yearly** with the billing switch.
+4. Click **Start Free Trial** (if the project is eligible for a trial) or **Upgrade project to Pro**.
+5. Complete the checkout. You can enter a promotion code and a tax ID during checkout.
+
+The project switches to Pro as soon as checkout completes. The badge next to the project name changes to **Pro plan** (or **Pro trial** during the trial).
+
+## Billing
+
+After your first subscription, two extra items appear in the **Settings** menu under **Account**:
+
+- **Billing Details**: update your payment method and billing information.
+- **Billing History**: see past invoices.
+
+If a payment fails, the project keeps its Pro features while the payment is past due, and the plan badge shows a warning icon. Update your payment method in **Billing Details** to resolve it.
+
+## Cancel a subscription
+
+1. Open the project and go to **Settings > Subscription**.
+2. Click **Cancel Subscription** and confirm.
+
+The cancellation takes effect immediately and the project returns to the Basic plan. Deleting a project also cancels its subscription.
+
+The subscription page offers a 30-day money-back guarantee. To request a refund, contact [admins@dynalinks.app](mailto:admins@dynalinks.app).
+
+### What changes when a project returns to Basic
+
+- Existing links on your `{subdomain}.dynalinks.app` domain keep working.
+- If the project has more than 100 links, you can't create new ones until you are back under the limit.
+- Links on your custom domain stop resolving. Your links remain available on the `{subdomain}.dynalinks.app` domain.
+- [Unnamed links](/api/unnamed-links) show a "This link is currently unavailable" page instead of redirecting.
+- Analytics show only the last 24 hours.
+- Links that use Pro-only fields (**Shortened path**, **Referrer**, **Apple Provider Token**, **Apple Campaign Token**) can't be edited until the project is on Pro again.
+- You can't invite new team members.
+
+## Free Pro vouchers
+
+If the Dynalinks team has given you a voucher for free Pro access, open the project's **Settings > Subscription** page and click **Use Free Voucher**. Each voucher upgrades one project and can be used once. Only the project owner can apply a voucher. Your vouchers and the projects they were used on are listed under **Settings > Free pro vouchers**.
+
+## Multiple projects and Enterprise
+
+If you need Pro on many projects, self-hosting, custom features or other enterprise requirements, use **Contact Sales** on the subscription page or email [admins@dynalinks.app](mailto:admins@dynalinks.app).

@@ -1,0 +1,122 @@
+---
+title: "Supporting query params"
+---
+
+**Advanced Settings** in the Project's Console Page provide you with more control over how Dynalinks behave.
+
+When someone opens one of your links, Dynalinks looks up the link by its path, including any query parameters. Two settings let you control which query parameters take part in that lookup:
+
+- **Ignored param names**: parameters to remove before the lookup.
+- **Allowed param names**: the only parameters to keep for the lookup. All others are removed.
+
+Configure both under **Settings → Advanced Settings** in your console, by clicking **Edit Query Parameters**. Only the project Owner and Managers can change them.
+
+> **Note:**  
+> This feature is intended for advanced users and should be configured carefully.
+
+---
+
+### Ignored query parameters
+
+You can set up a list of query parameters that will be ignored when resolving your Dynalinks.
+
+**Example:**  
+If you created a link `/something/path` and an external application appends a query parameter like `/something/path?tracking_code=abc` when a user clicks it, you can configure `tracking_code` to be ignored.  
+Users won't land on a 404 page just because an extra query parameter was added.
+
+#### How it works
+
+When you specify query parameters to ignore, Dynalinks will **skip them during link lookup**.
+
+**Example Use Case:**  
+Suppose your app adds tracking parameters like `utm_source` or `utm_tracking` to URLs.  
+You can set the ignored parameters list to:
+
+```text
+utm_source,utm_tracking
+```
+
+Now if you create a link `/something` and a user visits `/something?utm_source=google`, it still resolves correctly.
+
+---
+
+### Allowed query parameters
+
+The allowed list works the other way around. Instead of naming the parameters to drop, you name the ones that matter, and every other parameter is ignored during link lookup.
+
+This is useful when your links use a few meaningful parameters (for example `id` or `ref`) and visitors may arrive with any number of unpredictable extra ones.
+
+**Example:**  
+If you created a link `/product?id=123` and a user visits `/product?id=123&utm_source=google&tracking=abc`, with the allowed list set to:
+
+```text
+id,ref
+```
+
+Dynalinks keeps only `id` (and `ref`, if present), treats the visit as `/product?id=123`, and finds your link.
+
+Keep in mind:
+
+- Allowed parameters are still compared with your link. With `id` allowed, `/product?id=456` does **not** resolve to `/product?id=123`.
+- A link without query parameters still matches when only non-allowed parameters are added: with `id` allowed, `/product?tracking=abc` resolves to `/product`.
+
+---
+
+### Using both lists
+
+**The allowed list takes precedence.** When **Allowed param names** is set, **Ignored param names** is not used at all, even if it is also filled in. The ignored list only applies while the allowed list is empty.
+
+Setting **Allowed param names** to `*` keeps every query parameter. Because the allowed list is then set, the ignored list is switched off as well, so extra parameters on a visited URL can cause a 404.
+
+---
+
+### Parameters that are always ignored
+
+Some parameters are added by ad networks and social platforms to almost every click. Dynalinks always removes these during link lookup, whatever your settings:
+
+```text
+fbclid, ttclid, gclid, dclid, gad_source
+```
+
+Separately, if a visited URL does not match any link, Dynalinks tries once more with all parameters starting with `utm_` removed. That is why `/something?utm_source=google` finds a link created as `/something` even when no list is configured.
+
+---
+
+### Sample scenarios
+
+| Ignored Parameters | Allowed Parameters | Original Link | Visited URL | Result |
+|:-------------------|:-------------------|:--------------|:------------|:-------|
+| `utm_source,utm_tracking` | _(Not set)_ | `/something` | `/something?utm_source=google` | `/something` found |
+| `a,b` | _(Not set)_ | `/something?c=3` | `/something?a=1&b=2&c=3` | `/something?c=3` found |
+| `*` (ignore all) | _(Not set)_ | `/something` | `/something?a=1` | `/something` found |
+| `*` (ignore all) | _(Not set)_ | `/something?param=123` | `/something?another_param=200` | Not found |
+| _(Not set)_ | _(Not set)_ | `/something` | `/something` | `/something` found |
+| _(Not set)_ | _(Not set)_ | `/something` | `/something?utm_source=google` | `/something` found (`utm_` parameters) |
+| _(Not set)_ | _(Not set)_ | `/something` | `/something?fbclid=abc` | `/something` found (always ignored) |
+| _(Not set)_ | _(Not set)_ | `/something` | `/something?tracking=abc` | Not found |
+| _(Not set)_ | `id,ref` | `/product?id=123` | `/product?id=123&utm_source=google` | `/product?id=123` found |
+| _(Not set)_ | `id` | `/product?id=123` | `/product?id=123&ref=abc&tracking=xyz` | `/product?id=123` found |
+| _(Not set)_ | `category` | `/shop?category=electronics` | `/shop?category=electronics&sort=price&page=2` | `/shop?category=electronics` found |
+| _(Not set)_ | `id` | `/product` | `/product?tracking=abc` | `/product` found |
+| _(Not set)_ | `id` | `/product?id=123` | `/product?id=456` | Not found |
+| `tracking` | `id` | `/product` | `/product?tracking=abc` | `/product` found (allowed list used) |
+| `tracking` | `*` (keep all) | `/product` | `/product?tracking=abc` | Not found (ignored list not used) |
+
+---
+
+### How to configure
+
+- Provide a **comma-separated** list of query parameter names in either field. Spaces around names are trimmed and duplicates are removed.
+- Names must match exactly, including upper and lower case.
+- To ignore all query parameters, set **Ignored param names** to:
+
+```text
+*
+```
+
+- To keep all query parameters, set **Allowed param names** to `*`.
+- Leave a field empty to turn that list off.
+
+<Callout title="Note">
+Parameters are only removed when they have a value, such as `?flag=1`. A parameter with no value, such as `?flag` or `?flag=`, is kept even if its name is on the ignored list or missing from the allowed list.
+</Callout>

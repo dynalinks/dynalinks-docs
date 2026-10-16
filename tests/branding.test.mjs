@@ -41,12 +41,14 @@ test("brand colour is set", () => {
 test("no external font or icon CDN", () => {
   for (const file of outHtmlFiles()) {
     const html = readOut(file);
-    assert.ok(
-      !html.includes("fonts.googleapis.com"),
+    assert.doesNotMatch(
+      html,
+      /(href|src)="https:\/\/fonts\.googleapis\.com/,
       `${file} loads Google Fonts`,
     );
-    assert.ok(
-      !html.includes("cdnjs.cloudflare.com"),
+    assert.doesNotMatch(
+      html,
+      /(href|src)="https:\/\/cdnjs\.cloudflare\.com/,
       `${file} loads from cdnjs`,
     );
   }

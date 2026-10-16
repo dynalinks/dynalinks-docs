@@ -1,0 +1,347 @@
+---
+title: "SDK"
+---
+
+The Dynalinks Flutter SDK provides **deferred deep linking** and **Universal Link / App Link handling** for your Flutter app. It wraps the native iOS and Android SDKs to provide a unified Dart API.
+
+## Features
+
+- **Deferred Deep Linking**: Route users to specific content even when installing the app for the first time
+- **Universal Links / App Links**: Handle incoming deep links automatically
+- **Cross-Platform**: Single API for both iOS and Android
+- **Type-Safe**: Full Dart type safety with comprehensive error handling
+
+## Requirements
+
+- Flutter 3.3.0 or later
+- iOS 16.0 or later
+- Android API 21 or later
+
+## Installation
+
+Add `dynalinks` to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  dynalinks: ^1.0.3
+```
+
+Then run:
+
+```bash
+flutter pub get
+```
+
+### iOS Setup
+
+1. **Register your iOS app** in the [Dynalinks Console](https://dynalinks.app/console):
+   - Bundle Identifier (from Xcode project settings)
+   - Team ID (from Apple Developer account)
+   - App Store ID (from your app's App Store URL)
+
+2. **Configure Associated Domains** in Xcode:
+   - Open your iOS project > Signing & Capabilities
+   - Add the "Associated Domains" capability
+   - Add your domain: `applinks:yourproject.dynalinks.app`
+
+See the [iOS integration guide](/ios/setup) for detailed instructions.
+
+### Android Setup
+
+1. **Register your Android app** in the [Dynalinks Console](https://dynalinks.app/console):
+   - Package identifier (from `build.gradle` applicationId)
+   - SHA-256 certificate fingerprint (run `./gradlew signingReport`)
+
+2. **Add JitPack repository** to your project's `android/settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+Or if using `android/build.gradle`:
+
+```groovy
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+3. **Add intent filter** to your `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<activity
+    android:name=".MainActivity"
+    android:launchMode="singleTask">
+
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:scheme="https"
+            android:host="yourproject.dynalinks.app" />
+    </intent-filter>
+</activity>
+```
+
+See the [Android integration guide](/android/setup) for detailed instructions.
+
+## Setup
+
+### Configure the SDK
+
+Initialize the SDK as early as possible in your app's lifecycle:
+
+```dart
+import 'package:dynalinks/dynalinks.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Dynalinks.configure(
+    clientAPIKey: 'your-client-api-key',
+    logLevel: DynalinksLogLevel.debug, // Use .error in production
+  );
+
+  runApp(const MyApp());
+}
+```
+
+Get your **Client API Key** from the [Dynalinks Console](https://dynalinks.app/console) by navigating to your project's **Settings → Mobile SDK**.
+
+## Configuration Options
+
+```dart
+await Dynalinks.configure(
+  // Required: Your client API key from the Dynalinks console
+  clientAPIKey: 'your-api-key',
+
+  // Custom API URL (optional, defaults to production)
+  baseURL: 'https://custom.api.url',
+
+  // Log level (optional)
+  // DynalinksLogLevel.none    - No logging
+  // DynalinksLogLevel.error   - Errors only (default)
+  // DynalinksLogLevel.warning - Warnings and errors
+  // DynalinksLogLevel.info    - Info, warnings, and errors
+  // DynalinksLogLevel.debug   - All logs
+  logLevel: DynalinksLogLevel.debug,
+
+  // Allow checks on simulator/emulator (optional, defaults to false)
+  // Useful for development/testing
+  allowSimulatorOrEmulator: false,
+);
+```
+
+## Usage
+
+### Deferred Deep Links
+
+Check for deferred deep links on first launch:
+
+```dart
+Future<void> checkDeferredDeepLink() async {
+  try {
+    final result = await Dynalinks.checkForDeferredDeepLink();
+
+    if (result.matched && result.link != null) {
+      // User came from a deep link - navigate accordingly
+      final deepLinkValue = result.link!.deepLinkValue;
+      if (deepLinkValue != null) {
+        navigateTo(deepLinkValue);
+      }
+    }
+  } on SimulatorException {
+    // Running on simulator - deferred deep linking not available
+  } on DynalinksException catch (e) {
+    print('Error: ${e.message}');
+  }
+}
+```
+
+### Handle Incoming Deep Links
+
+Listen for links that open your app while it's running:
+
+```dart
+class _MyAppState extends State<MyApp> {
+  StreamSubscription<DeepLinkResult>? _subscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialLink();
+    _listenForLinks();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkInitialLink() async {
+    // Check for cold start link
+    final initialLink = await Dynalinks.getInitialLink();
+    if (initialLink != null && initialLink.matched) {
+      _handleResult(initialLink);
+    }
+  }
+
+  void _listenForLinks() {
+    _subscription = Dynalinks.onDeepLinkReceived.listen(_handleResult);
+  }
+
+  void _handleResult(DeepLinkResult result) {
+    if (result.matched && result.link?.deepLinkValue != null) {
+      // Navigate to the deep link destination
+      Navigator.pushNamed(context, result.link!.deepLinkValue!);
+    }
+  }
+}
+```
+
+### Manual Link Resolution
+
+Manually resolve a URI if needed:
+
+```dart
+final result = await Dynalinks.handleDeepLink(
+  Uri.parse('https://yourproject.dynalinks.app/promo'),
+);
+
+if (result.matched) {
+  // Handle the resolved link
+}
+```
+
+## DeepLinkResult
+
+```dart
+class DeepLinkResult {
+  /// Whether a matching link was found
+  final bool matched;
+
+  /// Confidence level: high, medium, or low
+  final Confidence? confidence;
+
+  /// Match score (0-100)
+  final int? matchScore;
+
+  /// Link data if matched
+  final LinkData? link;
+
+  /// Whether this is from a deferred deep link
+  final bool isDeferred;
+}
+
+class LinkData {
+  final String id;                    // Unique link identifier
+  final String? name;                 // Link name (for display)
+  final String? path;                 // Link path
+  final String? shortenedPath;        // Shortened path
+  final Uri? url;                     // Original URL the link points to
+  final Uri? fullUrl;                 // Full Dynalinks URL
+  final String? deepLinkValue;        // Value for in-app navigation
+  final bool? iosDeferredDeepLinkingEnabled;
+  final Uri? iosFallbackUrl;          // iOS fallback URL
+  final Uri? androidFallbackUrl;      // Android fallback URL
+  final bool? enableForcedRedirect;
+  final String? socialTitle;          // Social sharing title
+  final String? socialDescription;    // Social sharing description
+  final Uri? socialImageUrl;          // Social sharing image
+  final int? clicks;                  // Number of clicks on this link
+}
+```
+
+## Error Handling
+
+The SDK uses typed exceptions for error handling:
+
+```dart
+try {
+  final result = await Dynalinks.checkForDeferredDeepLink();
+  // Handle result
+} on NotConfiguredException {
+  // SDK not configured - call configure() first
+} on InvalidApiKeyException {
+  // Invalid API key provided
+} on SimulatorException {
+  // Running on simulator/emulator (disabled by default)
+} on NetworkException catch (e) {
+  // Network request failed
+  print('Network error: ${e.message}');
+} on InvalidResponseException {
+  // Server returned invalid response
+} on ServerException catch (e) {
+  // Server returned an error
+  print('Server error: ${e.message}');
+} on NoMatchException {
+  // No matching link found
+} on InvalidIntentException {
+  // Invalid intent data (Android only)
+} on InstallReferrerUnavailableException {
+  // Install Referrer API unavailable (Android only)
+} on InstallReferrerTimeoutException {
+  // Install Referrer connection timed out (Android only)
+} on DynalinksException catch (e) {
+  // Catch-all for other errors
+  print('Error: ${e.message}');
+}
+```
+
+## API Reference
+
+| Method | Description |
+|--------|-------------|
+| `configure()` | Initialize the SDK with your API key |
+| `checkForDeferredDeepLink()` | Check for deferred deep link (first launch) |
+| `handleDeepLink(Uri)` | Manually resolve a deep link URI |
+| `getInitialLink()` | Get the link that launched the app (cold start) |
+| `onDeepLinkReceived` | Stream of incoming links while app is running |
+| `version` | SDK version string |
+
+## How It Works
+
+### Deferred Deep Links
+
+1. User clicks a Dynalinks link (app not installed)
+2. User is redirected to the app store
+3. User installs and opens the app
+4. App calls `checkForDeferredDeepLink()`
+5. SDK retrieves deferred link data using platform-specific methods:
+   - **iOS**: Device fingerprint matching
+   - **Android**: Google Play Install Referrer API
+6. Server returns original link data
+
+### Universal Links / App Links
+
+1. User clicks a Dynalinks link (app installed)
+2. Platform opens your app directly
+3. SDK receives the link via platform channel
+4. App handles via `getInitialLink()` (cold start) or `onDeepLinkReceived` (warm start)
+
+## Platform-Specific Behavior
+
+### iOS
+
+Uses the native iOS SDK with fingerprint matching. The SDK collects device information (screen size, OS version, timezone, IDFV) to match the user to their original link.
+
+### Android
+
+Uses the Google Play Install Referrer API to reliably match the user to their original link based on the referrer URL passed from the Play Store.
+
+## More Information
+
+- [Package on pub.dev](https://pub.dev/packages/dynalinks)
+- [Source code on GitHub](https://github.com/dynalinks/dynalinks-flutter-sdk)

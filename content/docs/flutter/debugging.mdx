@@ -1,0 +1,264 @@
+---
+title: "Debugging"
+---
+
+This page helps you find out why a Dynalinks link is not reaching your Flutter app. Most problems fall into one of two groups:
+
+- **The link does not open the app at all.** This is an operating system configuration problem (Associated Domains on iOS, App Links verification on Android). The Flutter plugin never sees the link. Use the [iOS debugging](/ios/debugging) and [Android debugging](/android/debugging) guides.
+- **The app opens, but your code does not receive the link,** or deferred deep linking returns no match. This page covers those cases.
+
+---
+
+## Enable debug logging
+
+Set `logLevel` to `DynalinksLogLevel.debug` while you investigate:
+
+```dart
+await Dynalinks.configure(
+  clientAPIKey: 'your-client-api-key',
+  logLevel: DynalinksLogLevel.debug,
+);
+```
+
+| Level | What is logged |
+|:------|:---------------|
+| `none` | Nothing |
+| `error` | Errors only (the default) |
+| `warning` | Warnings and errors |
+| `info` | Info, warnings and errors |
+| `debug` | Everything, including each link being resolved |
+
+Switch back to `error` (or remove the parameter) before you release.
+
+<Callout type="error" title="Important">
+The SDK applies the configuration from the **first** `configure()` call in each app process and ignores later calls. Hot reload and hot restart keep the same process, so a new `logLevel` does not take effect until you stop the app and launch it again.
+</Callout>
+
+### Where to find the logs
+
+The logs come from the native SDKs, so they do not appear as Dart `print` output.
+
+**Android:** the logs go to Logcat under the tag `Dynalinks`. Errors raised while the plugin handles an incoming App Link use the tag `DynalinksPlugin`. Filter for both:
+
+```bash
+adb logcat -s Dynalinks DynalinksPlugin
+```
+
+You can also use the Logcat window in Android Studio with the filter `tag:Dynalinks`.
+
+**iOS:** the logs go to the system log under the subsystem `com.dynalinks.sdk`. Errors raised while the plugin handles an incoming Universal Link use the subsystem `app.dynalinks.sdk`. To see them:
+
+- Open `ios/Runner.xcworkspace` in Xcode and run the app from there. The messages appear in the Xcode console.
+- Or open the **Console** app on your Mac, select your device, and search for `subsystem:com.dynalinks.sdk`. Turn on **Action** > **Include Debug Messages** to see `debug` level output.
+
+### What to look for
+
+With `debug` logging on, a working setup logs lines like these:
+
+```
+Dynalinks SDK configured
+Resolving Universal Link: https://yourproject.dynalinks.app/promo
+Universal Link resolved: promo
+```
+
+On Android the wording is `Handling App Link` and `App Link resolved`. If you tap a link and see nothing at all, the operating system did not hand the link to your app. Go to the native debugging guides linked above.
+
+---
+
+## The app opens but no link arrives
+
+### You only listen to `onDeepLinkReceived`
+
+Since version 2.0.0, a link that **launches** the app is delivered only through `getInitialLink()`. Links that arrive **while the app is running** are delivered only through the `onDeepLinkReceived` stream. A link is never delivered to both.
+
+If your app only subscribes to the stream, links work when the app is already open but are silently missed on a cold start. Handle both:
+
+```dart
+@override
+void initState() {
+  super.initState();
+
+  Dynalinks.getInitialLink().then((result) {
+    if (result != null && result.matched) _handle(result);
+  });
+
+  _subscription = Dynalinks.onDeepLinkReceived.listen(_handle);
+}
+```
+
+`getInitialLink()` hands over its link once. Later calls in the same launch return `null`, so call it in one place only, for example in your root widget.
+
+To test both paths:
+
+1. **Cold start:** force quit the app, then tap a link. The link should arrive through `getInitialLink()`.
+2. **Warm start:** open the app, send it to the background, then tap a link. The link should arrive on the stream.
+
+<Callout title="Note">
+There is one case where a launch link arrives on the stream: when `getInitialLink()` has already returned `null` before the link finished resolving (for example on a very slow network, or after a failed `configure()` that you retried). Handling both channels covers this automatically.
+</Callout>
+
+### `configure()` is called too late
+
+On a cold start, the operating system hands the launch link to the plugin before your Dart code runs. The plugin holds the link and resolves it as soon as `configure()` succeeds. If `configure()` runs late (after a login screen, after fetching remote config, or not at all), `getInitialLink()` waits for it, and gives up with `null` if it never comes.
+
+Call `configure()` in `main()`, before `runApp()`:
+
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Dynalinks.configure(clientAPIKey: 'your-client-api-key');
+  runApp(const MyApp());
+}
+```
+
+If `configure()` throws (for example `InvalidApiKeyException` for an empty key), fix the key and call `configure()` again. The launch link is kept for the retry.
+
+### The listener is attached late
+
+Links that arrive while no listener is attached to `onDeepLinkReceived` are queued and delivered when a listener attaches. The queue holds the 32 most recent links. You do not need to subscribe before `runApp()`, but do subscribe in a widget that stays alive for the whole session, not in a screen that is disposed when the user navigates away.
+
+### The same link arrives only once when tapped twice quickly
+
+If the same URL arrives twice within about one second, the second delivery is treated as a duplicate and dropped. Tapping the same link again after that is delivered normally.
+
+### `matched` is `false`
+
+The plugin received the link, but it did not match a link in your project. Check that:
+
+- The link exists in the console with exactly that path.
+- The domain is your project's domain (or a custom domain added to the project).
+- You configured the SDK with the **client API key** of the same project, from **Settings** > **Mobile SDK**.
+
+You can test resolution directly with `handleDeepLink()`:
+
+```dart
+final result = await Dynalinks.handleDeepLink(
+  Uri.parse('https://yourproject.dynalinks.app/promo'),
+);
+debugPrint('matched: ${result.matched}, value: ${result.link?.deepLinkValue}');
+```
+
+---
+
+## Deferred deep linking returns no match
+
+### The check only runs once per install
+
+`checkForDeferredDeepLink()` runs its check on the first call after install and remembers the outcome. Every later call returns the same result without checking again, even after an app update. To test again, uninstall the app and install it fresh.
+
+### Simulators and emulators
+
+On an iOS Simulator or Android emulator, `checkForDeferredDeepLink()` throws `SimulatorException` unless you pass `allowSimulatorOrEmulator: true` to `configure()`.
+
+<Callout type="warn" title="Warning">
+A `SimulatorException` also counts as the one check for that install. If you add `allowSimulatorOrEmulator: true` afterwards, uninstall and reinstall the app before testing again.
+</Callout>
+
+### Android: the app was not installed from Google Play
+
+On Android, deferred deep linking uses the Google Play Install Referrer. An app installed with `flutter run`, from an APK, or from another store has no referrer, so the result is `matched: false` (the debug log shows `No Dynalinks referrer found`). Test this flow with a build installed from Google Play, for example through an internal testing track, after tapping a Dynalinks link. See [Android deferred deep linking](/deferred/deferred-android).
+
+On a device without Google Play services you may get `InstallReferrerUnavailableException` or `InstallReferrerTimeoutException`. Treat these as "no deferred link".
+
+### iOS: matching
+
+On iOS, deferred deep linking matches the device that installs the app with the device that clicked the link. Test on a physical device, on the same network, and open the app soon after installing it. See [iOS attribution and deferred deep linking](/deferred/deferred-ios).
+
+---
+
+## iOS build and setup issues
+
+### Build fails with a minimum platform version error
+
+The plugin requires iOS 16.0. Flutter's default deployment target is lower, so a new project fails to build with:
+
+```
+The package product 'dynalinks' requires minimum platform version 16.0 for the iOS platform,
+but this target supports 13.0
+```
+
+Open `ios/Runner.xcworkspace`, select the **Runner** target, and set **General** > **Minimum Deployments** > **iOS** to 16.0 or later. If your project uses CocoaPods, also set `platform :ios, '16.0'` in `ios/Podfile`.
+
+### The native iOS SDK version cannot be resolved
+
+The Flutter plugin depends on the native Dynalinks iOS SDK 1.0.4 or later in the 1.0 series. It works with both Swift Package Manager and CocoaPods:
+
+- **Swift Package Manager** resolves the native SDK automatically. If Xcode reports a package resolution error after upgrading the plugin, run `flutter clean` and build again.
+- **CocoaPods** keeps the version recorded in `ios/Podfile.lock`. If you upgraded from 1.x and the build reports that no compatible version of `DynalinksSDK` was found, update it:
+
+```bash
+cd ios && pod update DynalinksSDK
+```
+
+### Cold-start links are missed on iOS only
+
+Under the UIScene life cycle, a link that launches the app is delivered while the scene connects. Plugins must be registered by then. If you maintain `ios/Runner/AppDelegate.swift` by hand, register plugins in `didInitializeImplicitFlutterEngine`, not in `didFinishLaunchingWithOptions`:
+
+```swift
+@main
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+}
+```
+
+Running `flutter run` migrates a project to the UIScene life cycle and makes this change for you.
+
+### Universal Links do not open the app
+
+Check that the **Associated Domains** capability is added to the **Runner** target with `applinks:yourproject.dynalinks.app`, and that the bundle ID and Team ID registered in the console match your build. Then follow the [iOS debugging guide](/ios/debugging).
+
+---
+
+## Android build and setup issues
+
+### Gradle cannot find the Dynalinks Android SDK
+
+If the build fails with `Could not find com.github.dynalinks:dynalinks-android-sdk`, the JitPack repository is missing. Add it where your project declares its repositories, usually `android/build.gradle.kts`:
+
+```kotlin
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+If your project declares repositories in `dependencyResolutionManagement` in `android/settings.gradle.kts`, add it there instead.
+
+### App Links do not open the app
+
+Check the intent filter in `android/app/src/main/AndroidManifest.xml`. It must be inside your `MainActivity`, use `https`, and include `android:autoVerify="true"`:
+
+```xml
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data
+        android:scheme="https"
+        android:host="yourproject.dynalinks.app" />
+</intent-filter>
+```
+
+Also check that the package name and SHA-256 fingerprint registered in the console match the build you are testing. Debug builds are signed with a different key than release builds. Then follow the [Android debugging guide](/android/debugging), which shows how to verify App Links with `adb`.
+
+<Callout title="Note">
+The plugin only handles `http` and `https` links. Links with a custom URL scheme (for example `myapp://`) are not passed to `getInitialLink()` or `onDeepLinkReceived`.
+</Callout>
+
+---
+
+## Still stuck?
+
+Contact us at [admins@dynalinks.app](mailto:admins@dynalinks.app) with:
+
+- The plugin version (`Dynalinks.version`) and your Flutter version
+- The link you are testing
+- Whether the problem happens on a cold start, a warm start, or with deferred deep linking
+- The debug logs from the moment you tap the link
+
+See also the [Flutter SDK reference](/flutter/sdk).

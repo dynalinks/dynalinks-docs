@@ -1,0 +1,298 @@
+---
+title: "Page templates"
+---
+
+<ComingSoon />
+
+
+<Callout>
+**Coming soon**  
+Page templates are not available yet. This page describes how they will work once they are released.
+</Callout>
+
+<ProFeature message="Page templates are only available on the Pro plan." />
+
+
+When a user opens one of your links and does not have your app installed, Dynalinks shows a **preview page** with your link's title, description, image and the App Store / Google Play buttons.
+
+With **page templates** you can design that page yourself. You write the page body in HTML with [Liquid](https://shopify.github.io/liquid/) placeholders, plus your own CSS. Dynalinks still takes care of everything that makes the link work: redirects, meta tags for social previews, deferred deep linking and the store buttons.
+
+One template applies to **every link in the project**.
+
+---
+
+## Where to find it
+
+In the Console, open your project and go to **Settings → Page Template**.
+
+The editor has:
+
+- **Body**: the HTML and Liquid of your page.
+- **CSS**: the styles for your page.
+- **Preview**: a live preview of the page, with a platform switch (iOS, Android, Desktop).
+- **Reference**: a quick cheat sheet with variables, tags and rules.
+- **Versions**: every version you have published, so you can go back to an older one.
+
+A new template starts from a copy of the default page, so you always begin from something that works.
+
+---
+
+## Draft, preview, publish
+
+Editing a template never changes your live links until you publish.
+
+1. **Edit** the Body and CSS.
+2. Click **Preview** to see your unsaved changes. Use the platform switch to check iOS, Android and Desktop.
+3. Click **Save draft** to keep your work. Saving checks the template and shows any problems with the field (Body or CSS) and line number.
+4. Click **Publish** when you are happy with it. The new page goes live for all links in the project.
+
+To go back to an older version, click **Restore** next to it in **Versions**. This copies that version into your draft. Review it, then publish it again.
+
+<Callout title="Note">
+The preview uses your most recent link. If the project has no links yet, it uses a sample link. If that link has no iOS or Android app attached, the preview will not show a store button for that platform.
+</Callout>
+
+---
+
+## Variables
+
+Use `{{ ... }}` to print a value.
+
+| Variable | Description |
+|---|---|
+| `{{ link.title }}` | The link's social title |
+| `{{ link.description }}` | The link's social description |
+| `{{ link.image_url }}` | The link's social image URL |
+| `{{ link.url }}` | The link's destination URL |
+| `{{ link.path }}` | The link's path, for example `/promo/summer` |
+| `{{ project.name }}` | Your project's name |
+| `{{ ios_app.name }}` | The name of the iOS app attached to the link |
+| `{{ android_app.name }}` | The name of the Android app attached to the link |
+
+<Callout type="warn" title="Warning">
+Variables can be empty. Unnamed links in particular often have no title or description. Always give them a fallback or wrap them in a condition (see below).
+</Callout>
+
+```liquid
+<h1>{{ link.title | default: project.name }}</h1>
+
+{% if link.description %}
+  <p>{{ link.description }}</p>
+{% endif %}
+```
+
+All values are already HTML-escaped for you, so you do not need the `escape` filter. Adding it will show encoded characters like `&amp;` on the page.
+
+You can use the standard Liquid filters, such as `default`, `upcase`, `truncate` or `append`, and tags such as `if`, `unless`, `case`, `assign` and `for`. The `include` and `render` tags are not available.
+
+---
+
+## Dynalinks tags
+
+These tags place elements that Dynalinks renders for you. You choose **where** they go, and Dynalinks fills them in.
+
+| Tag | Description |
+|---|---|
+| `{% store_buttons %}` | **Required.** The App Store and Google Play buttons. On mobile only the matching store is shown, on desktop both are shown. A store with no app attached to the link shows nothing. |
+| `{% social_image %}` | The link's social image, if it has one. |
+| `{% open_button %}` | An "Open" button, shown on the page used to open your app. |
+
+`{% store_buttons %}` must be at the **top level** of your template. It cannot be placed inside `{% if %}`, `{% for %}` or other blocks, because every link needs its store buttons.
+
+Each tag renders into a `dl-slot` element, which you can style from the CSS field:
+
+```css
+dl-slot[name="store_buttons"] {
+  display: block;
+  margin-top: 2rem;
+}
+```
+
+---
+
+## Examples
+
+### Simple branded page
+
+**Body**
+
+```liquid
+<div class="page">
+  <main class="card">
+    <p class="eyebrow">{{ project.name }}</p>
+    <h1>{{ link.title | default: project.name }}</h1>
+    {% if link.description %}<p class="lead">{{ link.description }}</p>{% endif %}
+    {% social_image %}
+    {% store_buttons %}
+  </main>
+</div>
+```
+
+**CSS**
+
+```css
+body {
+  margin: 0;
+  background: #f4f1ea;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1f2933;
+}
+
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.card {
+  max-width: 420px;
+  padding: 2rem;
+  border-radius: 16px;
+  background: #ffffff;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #7b8794;
+}
+
+.lead {
+  color: #52606d;
+}
+
+dl-slot[name="store_buttons"] {
+  display: block;
+  margin-top: 1.5rem;
+}
+```
+
+### Hero image with a logo
+
+```liquid
+<header class="top">
+  <img src="https://example.com/logo.png" alt="{{ project.name }}" width="120">
+</header>
+
+<main class="hero">
+  {% social_image %}
+  <h1>{{ link.title | default: "Get the app" }}</h1>
+  {% if ios_app.name %}<p>Download {{ ios_app.name }} to continue.</p>{% endif %}
+</main>
+
+{% store_buttons %}
+
+<footer class="bottom">
+  <a href="https://example.com/privacy">Privacy policy</a>
+</footer>
+```
+
+### Different text per link
+
+You can use `link.path` to change the content for a group of links:
+
+```liquid
+{% if link.path contains "/promo/" %}
+  <h1>Your discount is waiting in the app</h1>
+{% else %}
+  <h1>{{ link.title | default: project.name }}</h1>
+{% endif %}
+
+{% store_buttons %}
+```
+
+### Call to action button
+
+There is no `<button>` element. Use a styled link instead:
+
+```liquid
+<a class="cta" href="https://example.com/learn-more">Learn more</a>
+```
+
+```css
+.cta {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  border-radius: 999px;
+  background: #4f46e5;
+  color: #ffffff;
+  text-decoration: none;
+}
+```
+
+---
+
+## Custom fonts
+
+You can use any font from [Google Fonts](https://fonts.google.com). Pick a font, click **Get embed code**, and copy the `@import` line into the **first line** of the CSS field:
+
+```css
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap");
+
+body {
+  font-family: "Poppins", sans-serif;
+}
+```
+
+- The `@import` must come first in the CSS and must use `url(...)`.
+- `@font-face` is supported only with font files from `fonts.gstatic.com`.
+- Self-hosted fonts are not supported.
+
+---
+
+## Rules and limits
+
+To keep your links safe and fast, templates run in a restricted environment. Problems are reported when you save, so nothing is removed silently.
+
+### HTML
+
+- No JavaScript: `<script>` tags and event handlers like `onclick` are not allowed.
+- No inline `style` attributes. Put all styles in the CSS field.
+- No `<iframe>`, `<form>`, `<video>`, `<audio>`, `<style>`, `<link>`, `<meta>`, `<object>` or `<embed>`.
+- No `data-*` or `aria-*` attributes.
+- The ids `ios`, `android` and `appStoreHref` are reserved for Dynalinks.
+- Links (`<a href>`) can use `https:`, `mailto:`, `tel:` or a relative URL.
+- Images must use `https:` or `data:image` URLs.
+
+**Supported elements:**
+`a` `abbr` `article` `aside` `b` `blockquote` `br` `caption` `cite` `code` `col` `colgroup` `dd` `del` `details` `div` `dl` `dt` `em` `figcaption` `figure` `footer` `h1` to `h6` `header` `hr` `i` `img` `ins` `kbd` `li` `main` `mark` `nav` `ol` `p` `picture` `pre` `q` `s` `samp` `section` `small` `source` `span` `strong` `sub` `summary` `sup` `table` `tbody` `td` `tfoot` `th` `thead` `time` `tr` `u` `ul` `var` `wbr`
+
+**Supported attributes:**
+
+| Element | Attributes |
+|---|---|
+| All elements | `class`, `id`, `dir`, `lang`, `title` |
+| `a` | `href`, `target`, `rel` |
+| `img` | `src`, `alt`, `width`, `height`, `loading`, `decoding` |
+| `source` | `src`, `srcset`, `type`, `media` |
+
+### CSS
+
+- Background images and other `url(...)` values must use `https:` or `data:image`.
+- `@import` is allowed only from `fonts.googleapis.com`.
+- Supported at-rules: `@import`, `@font-face`, `@media`, `@supports`, `@keyframes`, `@layer`, `@page` and `@charset`.
+
+### Size and speed
+
+Templates have limits on output size and rendering time. A normal landing page is far below them, but very large loops will be rejected.
+
+---
+
+## FAQ
+
+**Will my template be used for links with Forced Redirect?**
+No. Links with [forced redirect](/fallbacks/forced-redirect) skip the preview page, so no template is shown.
+
+**Can I break deferred deep linking with my template?**
+No. The scripts, redirects and store buttons are managed by Dynalinks and cannot be removed or changed by the template. Keep in mind that [deferred deep linking on iOS](/deferred/deferred-ios) needs the preview page, so do not hide the store buttons with CSS.
+
+**Can I use different templates for different links?**
+Not yet. One template applies to the whole project. You can use Liquid conditions on `link.path` or other variables to vary the content.
+

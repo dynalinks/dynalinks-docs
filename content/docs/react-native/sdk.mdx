@@ -1,0 +1,427 @@
+---
+title: "SDK"
+---
+
+The Dynalinks React Native SDK (Expo module) provides **deferred deep linking** for your React Native app. It wraps the native iOS and Android SDKs to provide a unified TypeScript API.
+
+## Features
+
+- **Deferred Deep Linking**: Route users to specific content even when installing the app for the first time
+- **Promise-Based API**: Modern async/await interface
+- **TypeScript Support**: Full type definitions with typed error classes
+- **Expo Module**: Built with Expo Modules API for seamless integration
+- **Cross-Platform**: Works on both iOS 16+ and Android 5.0+
+
+## Requirements
+
+- Expo SDK 50+
+- iOS 16.0+
+- Android API level 21+
+- React Native 0.70+
+
+## Installation
+
+```bash
+npx expo install expo-dynalinks-sdk
+```
+
+### iOS Setup
+
+1. **Register your iOS app** in the [Dynalinks Console](https://dynalinks.app/console):
+   - Bundle Identifier (from Xcode project settings)
+   - Team ID (from Apple Developer account)
+   - App Store ID (from your app's App Store URL)
+
+2. **Configure Associated Domains** in Xcode:
+   - Open your iOS project > Signing & Capabilities
+   - Add the "Associated Domains" capability
+   - Add your domain: `applinks:yourproject.dynalinks.app`
+
+See the [iOS integration guide](/ios/setup) for detailed instructions.
+
+### Android Setup
+
+1. **Register your Android app** in the [Dynalinks Console](https://dynalinks.app/console):
+   - Package identifier (from `build.gradle` applicationId)
+   - SHA-256 certificate fingerprint (run `./gradlew signingReport`)
+
+2. **Add JitPack repository** to your project's `android/build.gradle` if not already present:
+
+```groovy
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+3. **Add intent filter** to your `android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<activity
+    android:name=".MainActivity"
+    android:launchMode="singleTask">
+
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data
+            android:scheme="https"
+            android:host="yourproject.dynalinks.app" />
+    </intent-filter>
+</activity>
+```
+
+See the [Android integration guide](/android/setup) for detailed instructions.
+
+## Setup
+
+### Configure the SDK
+
+Initialize the SDK as early as possible in your app's lifecycle, typically in your root component:
+
+```typescript
+import { useEffect } from 'react';
+import Dynalinks, { DynalinksLogLevel } from 'expo-dynalinks-sdk';
+
+function App() {
+  useEffect(() => {
+    async function initializeDynalinks() {
+      try {
+        await Dynalinks.configure({
+          clientAPIKey: 'your-client-api-key',
+          logLevel: DynalinksLogLevel.debug, // Use .error in production
+        });
+      } catch (error) {
+        console.error('Failed to configure Dynalinks:', error);
+      }
+    }
+
+    initializeDynalinks();
+  }, []);
+
+  return (
+    // Your app content
+  );
+}
+```
+
+Get your **Client API Key** from the [Dynalinks Console](https://dynalinks.app/console) by navigating to your project's **Settings → Mobile SDK**.
+
+## Configuration Options
+
+```typescript
+await Dynalinks.configure({
+  // Required: Your client API key from the Dynalinks console
+  clientAPIKey: 'your-api-key',
+
+  // Custom API URL (optional, defaults to production)
+  baseURL: 'https://custom.api.url',
+
+  // Log level (optional, defaults to DynalinksLogLevel.error)
+  // DynalinksLogLevel.none    - No logging
+  // DynalinksLogLevel.error   - Errors only
+  // DynalinksLogLevel.warning - Warnings and errors
+  // DynalinksLogLevel.info    - Info, warnings, and errors
+  // DynalinksLogLevel.debug   - All logs
+  logLevel: DynalinksLogLevel.debug,
+
+  // Allow checks on simulator/emulator (optional, defaults to false)
+  // Useful for development/testing
+  allowSimulator: false,
+});
+```
+
+## Usage
+
+### Deferred Deep Links
+
+Check for deferred deep links on first launch:
+
+```typescript
+import { useEffect } from 'react';
+import Dynalinks, {
+  SimulatorError,
+  NetworkError
+} from 'expo-dynalinks-sdk';
+
+function App() {
+  useEffect(() => {
+    async function checkDeferredDeepLink() {
+      try {
+        const result = await Dynalinks.checkForDeferredDeepLink();
+
+        if (result.matched && result.link?.deepLinkValue) {
+          // User came from a deep link - navigate accordingly
+          handleDeepLink(result.link.deepLinkValue);
+        }
+      } catch (error) {
+        if (error instanceof SimulatorError) {
+          console.log('Running on simulator - deferred deep linking not available');
+        } else if (error instanceof NetworkError) {
+          console.error('Network error:', error.message);
+        } else {
+          console.error('Error:', error);
+        }
+      }
+    }
+
+    checkDeferredDeepLink();
+  }, []);
+
+  // ...
+}
+```
+
+### Handle Incoming Deep Links
+
+Use React Native's built-in `Linking` API to handle incoming links:
+
+```typescript
+import { useEffect } from 'react';
+import { Linking } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import Dynalinks from 'expo-dynalinks-sdk';
+
+function App() {
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    // Check for initial URL (cold start)
+    const checkInitialURL = async () => {
+      const initialURL = await Linking.getInitialURL();
+      if (initialURL) {
+        handleIncomingURL(initialURL);
+      }
+    };
+
+    // Listen for URL events (warm start)
+    const subscription = Linking.addEventListener('url', (event) => {
+      handleIncomingURL(event.url);
+    });
+
+    checkInitialURL();
+
+    return () => subscription.remove();
+  }, []);
+
+  const handleIncomingURL = async (url: string) => {
+    try {
+      const result = await Dynalinks.resolveLink(url);
+
+      if (result.matched && result.link?.deepLinkValue) {
+        // Navigate to the deep link destination
+        navigateToDeepLink(result.link.deepLinkValue);
+      }
+    } catch (error) {
+      console.error('Error resolving link:', error);
+    }
+  };
+
+  const navigateToDeepLink = (deepLinkValue: string) => {
+    // Parse deep link value and navigate accordingly
+    if (deepLinkValue.startsWith('product/')) {
+      const productId = deepLinkValue.replace('product/', '');
+      navigation.navigate('ProductDetails', { productId });
+    } else if (deepLinkValue.startsWith('invite/')) {
+      const inviteCode = deepLinkValue.replace('invite/', '');
+      navigation.navigate('AcceptInvite', { inviteCode });
+    }
+  };
+
+  // ...
+}
+```
+
+## API Reference
+
+### Dynalinks.configure()
+
+Configures the SDK with your API key and options.
+
+```typescript
+await Dynalinks.configure(config: DynalinksConfig): Promise<void>
+```
+
+**Parameters:**
+- `config.clientAPIKey` (required) - Your Dynalinks client API key
+- `config.baseURL` (optional) - Custom API base URL
+- `config.logLevel` (optional) - Logging verbosity level
+- `config.allowSimulator` (optional) - Allow checks on simulator/emulator
+
+**Throws:**
+- `InvalidApiKeyError` - If the API key format is invalid
+- `NetworkError` - On network failures
+- `ServerError` - On server errors
+
+### Dynalinks.checkForDeferredDeepLink()
+
+Checks for a deferred deep link from the install referrer.
+
+```typescript
+await Dynalinks.checkForDeferredDeepLink(): Promise<DeepLinkResult>
+```
+
+**Returns:** `Promise<DeepLinkResult>` - The deferred deep link result
+
+**Throws:**
+- `NotConfiguredError` - If SDK is not configured
+- `SimulatorError` - If running on simulator/emulator (when `allowSimulator` is false)
+- `InstallReferrerUnavailableError` - Android only: Install Referrer service unavailable
+- `InstallReferrerTimeoutError` - Android only: Install Referrer service timeout
+- `NetworkError` - On network failures
+- `ServerError` - On server errors
+
+### Dynalinks.resolveLink()
+
+Manually resolves a URL to link data.
+
+```typescript
+await Dynalinks.resolveLink(url: string): Promise<DeepLinkResult>
+```
+
+**Parameters:**
+- `url` (required) - The URL to resolve
+
+**Returns:** `Promise<DeepLinkResult>` - The resolved link result
+
+**Throws:**
+- `NotConfiguredError` - If SDK is not configured
+- `InvalidUrlError` - If the URL format is invalid
+- `NetworkError` - On network failures
+- `ServerError` - On server errors
+
+### Dynalinks.version
+
+The current SDK version.
+
+```typescript
+const version: string = Dynalinks.version;
+```
+
+## Types
+
+### DynalinksConfig
+
+```typescript
+interface DynalinksConfig {
+  clientAPIKey: string;
+  baseURL?: string;
+  logLevel?: DynalinksLogLevel;
+  allowSimulator?: boolean;
+}
+```
+
+### DynalinksLogLevel
+
+```typescript
+enum DynalinksLogLevel {
+  none = 'none',
+  error = 'error',
+  warning = 'warning',
+  info = 'info',
+  debug = 'debug',
+}
+```
+
+### DeepLinkResult
+
+```typescript
+interface DeepLinkResult {
+  matched: boolean;                        // Whether a matching link was found
+  confidence?: 'high' | 'medium' | 'low';  // Confidence level of the match
+  matchScore?: number;                     // Match score (0-100)
+  link?: LinkData;                         // Link data if matched
+  isDeferred: boolean;                     // Whether this is from a deferred deep link
+}
+```
+
+### LinkData
+
+```typescript
+interface LinkData {
+  id: string;                      // Unique identifier for the link
+  name?: string;                   // Link name
+  path?: string;                   // Path component of the link
+  shortenedPath?: string;          // Shortened path
+  url?: string;                    // Original URL
+  fullUrl?: string;                // Full Dynalinks URL
+  deepLinkValue?: string;          // Deep link value for routing
+  iosFallbackUrl?: string;         // iOS fallback URL
+  androidFallbackUrl?: string;     // Android fallback URL
+  enableForcedRedirect?: boolean;  // Whether forced redirect is enabled
+  socialTitle?: string;            // Social sharing title
+  socialDescription?: string;      // Social sharing description
+  socialImageUrl?: string;         // Social sharing image URL
+  clicks?: number;                 // Number of clicks
+}
+```
+
+## Error Handling
+
+All SDK methods throw typed error classes that extend `DynalinksError`:
+
+```typescript
+import {
+  DynalinksError,
+  NotConfiguredError,
+  InvalidApiKeyError,
+  SimulatorError,
+  NetworkError,
+  ServerError,
+  InvalidResponseError,
+  NoMatchError,
+  InstallReferrerUnavailableError,
+  InstallReferrerTimeoutError,
+  InvalidUrlError,
+} from 'expo-dynalinks-sdk';
+
+try {
+  const result = await Dynalinks.checkForDeferredDeepLink();
+} catch (error) {
+  if (error instanceof SimulatorError) {
+    // Handle simulator case
+  } else if (error instanceof NetworkError) {
+    // Handle network error
+  } else if (error instanceof DynalinksError) {
+    // Handle other Dynalinks errors
+    console.error(error.code, error.message);
+  }
+}
+```
+
+All `DynalinksError` instances have:
+- `code` - Error code (e.g., 'NOT_CONFIGURED', 'NETWORK_ERROR')
+- `message` - Human-readable error message
+- `name` - Error class name (e.g., 'NotConfiguredError')
+
+## How It Works
+
+### Deferred Deep Linking
+
+1. **User clicks a Dynalinks link** (app not installed)
+2. User is redirected to the app store
+3. **User installs and opens the app**
+4. App calls `Dynalinks.configure()` on startup
+5. App calls `Dynalinks.checkForDeferredDeepLink()`
+6. SDK checks for deferred deep link using the native platform API
+7. **Method returns `DeepLinkResult`** with link data
+8. App navigates to the appropriate content
+
+### Platform-Specific Behavior
+
+**iOS:**
+Uses fingerprint matching with the native iOS SDK. The SDK collects device information (screen size, OS version, timezone, IDFV) to match the user to their original link.
+
+**Android:**
+Uses the Google Play Install Referrer API to reliably match the user to their original link based on the referrer URL passed from the Play Store.
+
+## More Information
+
+- **GitHub**: [github.com/dynalinks/dynalinks-react-native-sdk](https://github.com/dynalinks/dynalinks-react-native-sdk)
+- **npm**: [npmjs.com/package/expo-dynalinks-sdk](https://www.npmjs.com/package/expo-dynalinks-sdk)
+- **Native iOS SDK**: [github.com/dynalinks/dynalinks-ios-sdk](https://github.com/dynalinks/dynalinks-ios-sdk)
+- **Native Android SDK**: [github.com/dynalinks/dynalinks-android-sdk](https://github.com/dynalinks/dynalinks-android-sdk)

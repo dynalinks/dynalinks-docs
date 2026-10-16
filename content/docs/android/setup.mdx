@@ -1,0 +1,67 @@
+---
+title: "Setup"
+---
+
+## Quick start checklist
+
+- Register your app in the [Dynalinks Console](https://dynalinks.app/console)
+- Add an intent filter to your `AndroidManifest.xml`
+- Upload your SHA-256 fingerprint
+- Build and test the integration
+
+---
+
+### 1. Register your Android app
+
+Go to the [Dynalinks console](https://dynalinks.app/console) and register your Android app.
+
+You will need:
+
+- **Package identifier**: found in your `build.gradle` under `applicationId`.
+- **SHA-256 certificate fingerprint**: run the command below to obtain it:
+
+```bash
+./gradlew signingReport
+```
+
+More details are available in [this StackOverflow thread](https://stackoverflow.com/questions/42290681/android-studio-only-gives-me-sha1-i-need-sha256).
+
+---
+
+### 2. Configure AndroidManifest.xml
+
+To ensure Android handles Dynalinks properly, add the following intent filter to the `<activity>` in your `AndroidManifest.xml`:
+
+```xml
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    
+    <data android:scheme="https" android:host="your.domain.com" />
+</intent-filter>
+```
+
+See the [Android developer docs on App Links](https://developer.android.com/training/app-links) for more info.
+
+> **Note:** If the app is not installed or link verification fails, Android opens the link in the browser. Make sure your web fallback is set up accordingly.
+
+---
+
+### 3. Dynalinks-specific setup
+
+Once your app is registered and the intent filter is added, Dynalinks takes care of routing and link resolution for you.
+
+No SDK is required for basic App Link support.
+
+---
+
+### Next step: add the Android SDK
+
+Integrate the [Android SDK](/android/sdk) to:
+- Handle App Links with full link data resolution
+- Support deferred deep linking (users who install after clicking a link)
+- Get match confidence scores and analytics
+
+---

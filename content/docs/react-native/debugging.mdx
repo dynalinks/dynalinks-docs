@@ -1,0 +1,229 @@
+---
+title: "Debugging"
+---
+
+This page helps you find out why a Dynalinks link is not reaching your React Native app. Most problems fall into one of two groups:
+
+- **The link does not open the app at all.** This is an operating system configuration problem (Associated Domains on iOS, App Links verification on Android). Your JavaScript code never sees the link. Use the [iOS debugging](/ios/debugging) and [Android debugging](/android/debugging) guides.
+- **The app opens, but the link is not handled,** or deferred deep linking returns no match. This page covers those cases.
+
+---
+
+## Enable debug logging
+
+Set `logLevel` to `DynalinksLogLevel.debug` while you investigate:
+
+```typescript
+import Dynalinks, { DynalinksLogLevel } from 'expo-dynalinks-sdk';
+
+await Dynalinks.configure({
+  clientAPIKey: 'your-client-api-key',
+  logLevel: DynalinksLogLevel.debug,
+});
+```
+
+| Level | What is logged |
+|:------|:---------------|
+| `none` | Nothing |
+| `error` | Errors only (the default) |
+| `warning` | Warnings and errors |
+| `info` | Info, warnings and errors |
+| `debug` | Everything, including each link being resolved |
+
+Switch back to `error` (or remove the option) before you release.
+
+<Callout type="error" title="Important">
+The SDK applies the configuration from the **first** `configure()` call in each app process and ignores later calls. Reloading JavaScript (Fast Refresh, or pressing `r` in Metro) keeps the same process, so a new `logLevel` does not take effect until you close the app completely and launch it again.
+</Callout>
+
+### Where to find the logs
+
+The logs come from the native SDKs, so they do not appear in the Metro terminal or the JavaScript console.
+
+**Android:** the logs go to Logcat under the tag `Dynalinks`:
+
+```bash
+adb logcat -s Dynalinks
+```
+
+You can also use the Logcat window in Android Studio with the filter `tag:Dynalinks`.
+
+**iOS:** the logs go to the system log under the subsystem `com.dynalinks.sdk`. To see them:
+
+- Open the `.xcworkspace` file in your `ios` folder in Xcode and run the app from there. The messages appear in the Xcode console.
+- Or open the **Console** app on your Mac, select your device, and search for `subsystem:com.dynalinks.sdk`. Turn on **Action** > **Include Debug Messages** to see `debug` level output.
+
+Errors thrown by the SDK are also rejected promises in JavaScript, so log `error.code` and `error.message` in your `catch` blocks.
+
+---
+
+## "Cannot find native module 'ExpoDynalinksSdk'"
+
+The SDK contains native code, so it does not work in **Expo Go**. Use a [development build](https://docs.expo.dev/develop/development-builds/introduction/) instead:
+
+```bash
+npx expo run:ios
+npx expo run:android
+```
+
+You also see this error if you installed the package but did not rebuild the native app afterwards. Reloading JavaScript is not enough after adding or upgrading a package with native code: rebuild the app.
+
+---
+
+## The app opens but the link is not handled
+
+The SDK does not listen for incoming links itself. Your app receives links through React Native's `Linking` API and passes them to `Dynalinks.resolveLink()`. If links open the app but nothing happens, check each step.
+
+### Handle both cold and warm starts
+
+A link that **launches** the app is available from `Linking.getInitialURL()`. A link that arrives **while the app is running** is delivered as a `url` event. Handle both, as shown in the [SDK guide](/react-native/sdk#handle-incoming-deep-links):
+
+```typescript
+useEffect(() => {
+  Linking.getInitialURL().then((url) => {
+    if (url) handleIncomingURL(url);
+  });
+
+  const subscription = Linking.addEventListener('url', ({ url }) => {
+    handleIncomingURL(url);
+  });
+
+  return () => subscription.remove();
+}, []);
+```
+
+To test both paths:
+
+1. **Cold start:** close the app completely, then tap a link.
+2. **Warm start:** open the app, send it to the background, then tap a link.
+
+### Make sure `configure()` has finished first
+
+`resolveLink()` and `checkForDeferredDeepLink()` reject with `NotConfiguredError` if they run before `configure()` has completed. On a cold start, your `Linking` handler can run very early, so wait for `configure()` before you resolve the initial URL:
+
+```typescript
+useEffect(() => {
+  async function start() {
+    await Dynalinks.configure({ clientAPIKey: 'your-client-api-key' });
+
+    const initialURL = await Linking.getInitialURL();
+    if (initialURL) await handleIncomingURL(initialURL);
+  }
+
+  start();
+}, []);
+```
+
+### Only resolve your Dynalinks URLs
+
+`Linking` also reports other URLs that open your app, such as custom scheme links or development build URLs. Passing those to `resolveLink()` returns `matched: false`, or rejects with `InvalidUrlError` if the URL has no scheme or host. Check the host before resolving:
+
+```typescript
+const handleIncomingURL = async (url: string) => {
+  if (!url.startsWith('https://yourproject.dynalinks.app/')) return;
+  const result = await Dynalinks.resolveLink(url);
+  // ...
+};
+```
+
+If you use a custom domain, check for that domain too.
+
+### iOS: links open the app but `Linking` reports nothing
+
+On iOS, Universal Links reach `Linking` only if your app delegate forwards them. Expo projects do this automatically. In a React Native app without Expo's app delegate, follow the [React Native Linking guide](https://reactnative.dev/docs/linking#enabling-deep-links) to forward `continueUserActivity` to `RCTLinkingManager`.
+
+### `matched` is `false`
+
+The SDK received the link, but it did not match a link in your project. Check that:
+
+- The link exists in the console with exactly that path.
+- The domain is your project's domain (or a custom domain added to the project).
+- You configured the SDK with the **client API key** of the same project, from **Settings** > **Mobile SDK**.
+
+You can test resolution directly:
+
+```typescript
+const result = await Dynalinks.resolveLink('https://yourproject.dynalinks.app/promo');
+console.log(result.matched, result.link?.deepLinkValue);
+```
+
+---
+
+## Deferred deep linking returns no match
+
+### The check only runs once per install
+
+`checkForDeferredDeepLink()` runs its check on the first call after install and remembers the outcome. Every later call returns the same result without checking again, even after an app update. To test again, uninstall the app and install it fresh.
+
+### Simulators and emulators
+
+On an iOS Simulator or Android emulator, `checkForDeferredDeepLink()` rejects with `SimulatorError` unless you pass `allowSimulator: true` to `configure()`. The same option covers both the iOS Simulator and the Android emulator.
+
+<Callout type="warn" title="Warning">
+A `SimulatorError` also counts as the one check for that install. If you add `allowSimulator: true` afterwards, uninstall and reinstall the app before testing again.
+</Callout>
+
+### Android: the app was not installed from Google Play
+
+On Android, deferred deep linking uses the Google Play Install Referrer. An app installed with `npx expo run:android`, from an APK, or from another store has no referrer, so the result is `matched: false` (the debug log shows `No Dynalinks referrer found`). Test this flow with a build installed from Google Play, for example through an internal testing track, after tapping a Dynalinks link. See [Android deferred deep linking](/deferred/deferred-android).
+
+On a device without Google Play services you may get `InstallReferrerUnavailableError` or `InstallReferrerTimeoutError`. Treat these as "no deferred link".
+
+### iOS: matching
+
+On iOS, deferred deep linking matches the device that installs the app with the device that clicked the link. Test on a physical device, on the same network as when you tapped the link, and open the app soon after installing it. See [iOS attribution and deferred deep linking](/deferred/deferred-ios).
+
+---
+
+## Setup issues
+
+### Native configuration disappears after a rebuild
+
+If your project uses Expo prebuild (the `ios` and `android` folders are generated), changes you make directly in Xcode or in `AndroidManifest.xml` are overwritten when the folders are regenerated, for example with `npx expo prebuild --clean`. Configure Associated Domains and the Android intent filter in your app config instead:
+
+```json
+{
+  "expo": {
+    "ios": {
+      "associatedDomains": ["applinks:yourproject.dynalinks.app"]
+    },
+    "android": {
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [{ "scheme": "https", "host": "yourproject.dynalinks.app" }],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    }
+  }
+}
+```
+
+Then rebuild the app.
+
+### Universal Links (iOS) do not open the app
+
+Check that the built app has the **Associated Domains** entitlement with `applinks:yourproject.dynalinks.app`, and that the bundle ID and Team ID registered in the console match your build. Then follow the [iOS debugging guide](/ios/debugging).
+
+### App Links (Android) do not open the app
+
+Check that the intent filter uses `https`, includes `autoVerify`, and is on your main activity. Also check that the package name and SHA-256 fingerprint registered in the console match the build you are testing. Debug builds are signed with a different key than release builds. Then follow the [Android debugging guide](/android/debugging), which shows how to verify App Links with `adb`.
+
+### Gradle cannot find the Dynalinks Android SDK
+
+If the Android build fails with `Could not find com.github.dynalinks:dynalinks-android-sdk`, add the JitPack repository (`https://jitpack.io`) to your Android repositories, as described in the [SDK guide](/react-native/sdk#android-setup).
+
+---
+
+## Still stuck?
+
+Contact us at [admins@dynalinks.app](mailto:admins@dynalinks.app) with:
+
+- The SDK version (`Dynalinks.version`), your React Native version and, if you use Expo, your Expo SDK version
+- The link you are testing
+- Whether the problem happens on a cold start, a warm start, or with deferred deep linking
+- The debug logs from the moment you tap the link
+
+See also the [React Native SDK reference](/react-native/sdk).

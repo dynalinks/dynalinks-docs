@@ -1,0 +1,68 @@
+---
+title: "Receiving link in your app"
+---
+
+When a Dynalink is opened, your app can capture the URL and react to it. Here's how to handle incoming links on different platforms.
+
+<Callout title="Note">
+**Recommended:** Use our native SDKs for the best experience. They handle both direct links and [deferred deep linking](/deferred/deferred-ios) automatically.
+- [iOS SDK](/ios/sdk) - Swift/SwiftUI integration
+- [Android SDK](/android/sdk) - Kotlin/Java integration
+</Callout>
+
+## iOS (SwiftUI)
+
+In SwiftUI apps, use the `onOpenURL` modifier to capture and handle incoming URLs.
+
+Example:
+
+```swift
+import SwiftUI
+
+@main
+struct MyApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .onOpenURL { url in
+                    // Handle the incoming Dynalink
+                    print("Received URL: \(url)")
+                    // You can navigate or parse the URL here
+                }
+        }
+    }
+}
+```
+
+This method is called automatically when the user opens your app via dynalink.
+More info on how to set up deep links can be found in the [Apple documentation](https://developer.apple.com/documentation/Xcode/allowing-apps-and-websites-to-link-to-your-content).
+
+---
+
+## Android (Kotlin / Java)
+
+On Android, you can retrieve the incoming URL through the `Intent` that launched the activity.
+
+Example (Kotlin):
+
+```kotlin
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.main)
+
+    val action: String? = intent?.action
+    val data: Uri? = intent?.data
+}
+```
+
+The `intent.data` holds the URI that triggered the app open. Make sure your activity is properly declared to handle deep links.
+More info on how to set up deep links can be found in the [Android documentation](https://developer.android.com/training/app-links/deep-linking).
+
+
+## React Native
+
+For full documentation and best practices, visit the [React Native Linking documentation](https://reactnative.dev/docs/linking).
+
+## Flutter
+
+For full documentation and best practices, visit the [app_links package documentation](https://pub.dev/packages/app_links).

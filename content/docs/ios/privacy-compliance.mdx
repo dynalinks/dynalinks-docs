@@ -1,0 +1,140 @@
+---
+title: "Privacy & Apple App Store Compliance"
+---
+
+This page explains how the Dynalinks iOS SDK approaches deferred deep linking on iOS in a way that is consistent with Apple's App Store Review Guidelines and App Tracking Transparency (ATT) framework.
+
+It is intended for legal, security, and platform-compliance reviewers who are evaluating Dynalinks Pro for production iOS apps.
+
+## TL;DR
+
+- The SDK does **not** use IDFA, does **not** require an ATT prompt, and does **not** share data with third-party advertisers or data brokers.
+- The SDK is used for **first-party install attribution**: matching a link the user just clicked to that same user when they open your app for the first time.
+- Match data is **short-lived** (10-minute server-side lookback) and **single-use** (each web-side fingerprint can be matched to at most one install).
+- The data we collect is the same class of low-entropy device characteristics that Apple's own [SKAdNetwork](https://developer.apple.com/documentation/storekit/skadnetwork) and other major attribution providers use, used here only to bridge a single web→app session.
+
+## Apple's Position on Fingerprinting
+
+Apple's relevant rules live in two places:
+
+1. [App Store Review Guideline 5.1.2: *Data Use and Sharing*](https://developer.apple.com/app-store/review/guidelines/#data-use-and-sharing)
+2. The [User Privacy and Data Use](https://developer.apple.com/app-store/user-privacy-and-data-use/) policy, which defines **Tracking**
+
+Apple defines **Tracking** as:
+
+> The act of linking user or device data collected from your app with user or device data collected from other companies' apps, websites, or offline properties for **targeted advertising** or **advertising measurement** purposes. Tracking also refers to **sharing user or device data with data brokers**.
+
+Apple prohibits using device fingerprinting as a substitute for IDFA when the user has not granted ATT permission *for tracking purposes as defined above*. Apple does **not** prohibit collecting device characteristics for legitimate, first-party, non-advertising functionality, including install attribution and deferred deep linking. This is explicitly the use case Apple's own SKAdNetwork was designed to serve.
+
+## Why Dynalinks Deferred Deep Linking is Compliant
+
+### 1. It is first-party, not cross-company tracking
+
+The Dynalinks SDK runs inside **your** app and matches against a fingerprint generated on **your** Dynalinks subdomain (or custom domain). The data is not joined with data from other companies' apps or websites, and it is not shared with data brokers. This is not "Tracking" under Apple's definition.
+
+If you, the developer, choose to forward the resolved deep-link metadata into a third-party advertising or attribution SDK afterwards, that downstream behavior is governed by your own privacy disclosures and ATT setup, not by Dynalinks.
+
+### 2. No IDFA, no ATT prompt required
+
+The SDK uses **IDFV** (`identifierForVendor`), which Apple explicitly designates as a per-vendor identifier that is **not** considered tracking and does **not** require ATT permission. We never call `ASIdentifierManager` and never request the IDFA.
+
+### 3. The match is short-lived and single-use
+
+| Property | Value |
+|---|---|
+| Server-side lookback window | **10 minutes** |
+| Reuse | Single-use: each web fingerprint can match at most one install |
+| Persistent profile | None. Fingerprints are not retained beyond the lookback window for matching |
+
+A user must install and open the app within 10 minutes of clicking the link for a match to succeed. This is intentionally narrow. It is enough for install attribution but unsuitable for the persistent cross-app profile that Apple's policy is designed to prevent.
+
+### 4. No persistent cross-session identity
+
+The SDK does not generate a stable cross-session identity from the collected signals. Each fingerprint exists only to bridge **one** web click to **one** app launch.
+
+## Exactly What the SDK Collects
+
+The SDK source is open and available at [github.com/dynalinks/dynalinks-ios-sdk](https://github.com/dynalinks/dynalinks-ios-sdk). The full list of collected fields is in `Sources/DynalinksSDK/Internal/DeviceFingerprint.swift`:
+
+| Field | Source | Apple ATT category |
+|---|---|---|
+| `screen_width`, `screen_height` | `UIScreen.main.bounds` | Device characteristic, not personal data |
+| `device_pixel_ratio` | `UIScreen.main.scale` | Device characteristic |
+| `os_version` | `UIDevice.current.systemVersion` | Device characteristic |
+| `timezone` | `TimeZone.current.identifier` | Device characteristic |
+| `calendar` | `Locale.current.calendar` | Device characteristic |
+| `language`, `languages` | `Locale.preferredLanguages` | Device characteristic |
+| `country_code` | `Locale.current.region` | Device characteristic |
+| `device_model` | Hardware model (e.g. `iPhone15,3`) | Device characteristic |
+| `idfv` | `UIDevice.current.identifierForVendor` | Per-vendor, ATT not required |
+| `app_version`, `app_build` | `Bundle.main.infoDictionary` | Your app's own metadata |
+| `simulator` | Compile-time flag | Diagnostic |
+
+What the SDK does **not** collect:
+
+- IDFA (Apple advertising identifier)
+- Name, email, phone number, or any directly identifying data
+- Contacts, photos, location, microphone, camera, health, or any data requiring an iOS purpose-string permission
+- Browser history, installed apps, or cross-app activity
+- Persistent device identifiers beyond IDFV
+
+## Server-Side Storage
+
+Web-side fingerprints (collected from the link landing page) are stored in our analytics database with the same field set as above plus the user agent and request IP at the time of click. They are:
+
+- Scoped to a single Dynalinks project
+- Eligible for matching only within the **10-minute** lookback window
+- Marked as consumed after a successful match (`matched_at` timestamp)
+- Not exported, sold, or shared outside your project
+
+## App Privacy Manifest (PrivacyInfo.xcprivacy)
+
+The Dynalinks iOS SDK is a third-party SDK and your app's [App Privacy nutrition label](https://developer.apple.com/app-store/app-privacy-details/) and [Privacy Manifest](https://developer.apple.com/documentation/bundleresources/privacy_manifest_files) should reflect that. Recommended disclosures for apps integrating the SDK:
+
+**Data types collected by the SDK on your behalf:**
+
+- *Identifiers → User ID*: not collected
+- *Identifiers → Device ID*: **IDFV**, used for App Functionality (deferred deep link matching)
+- *Diagnostics → Other Diagnostic Data*: device class, OS version, locale, used for App Functionality
+- *Usage Data*: not collected
+- *Browsing History*: not collected
+
+**Linked to user / used for tracking:** No.
+
+When filing your Privacy Manifest, the relevant `NSPrivacyAccessedAPITypes` reasons for the APIs the SDK touches are typically:
+
+- `UIDeviceIdentifierForVendor`: declared reason `DDA9.1` (declared per-app per Apple's documentation; covers IDFV access for app functionality).
+
+Always confirm the latest reason codes against [Apple's official list](https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/describing_use_of_required_reason_api).
+
+## App Tracking Transparency (ATT)
+
+You do **not** need to call `ATTrackingManager.requestTrackingAuthorization` solely because you integrate the Dynalinks SDK. The SDK's data use is first-party and does not meet Apple's definition of Tracking.
+
+You **do** need ATT if your own app, separately:
+
+- Sends user or device data to third-party advertising networks for targeted ads or ad measurement, or
+- Joins Dynalinks attribution data with data from other companies' apps for those purposes
+
+If neither applies, no ATT prompt is required.
+
+## App Review
+
+Apps that integrate the Dynalinks SDK have shipped through App Review without compliance issues attributable to the SDK. If your reviewer asks specifically about fingerprinting, the talking points are:
+
+1. The SDK does not request IDFA and does not require ATT.
+2. Data collected is first-party, used only to match a single web click to a single app install within a 10-minute window.
+3. The data is not shared with data brokers or third-party advertising networks by the SDK.
+4. The data fields are device characteristics and IDFV. None of them are categorized as Tracking under Apple's policy.
+
+## Source Code
+
+The SDK is open source. You can audit exactly what is collected and how it is sent:
+
+- iOS SDK: [github.com/dynalinks/dynalinks-ios-sdk](https://github.com/dynalinks/dynalinks-ios-sdk)
+- Fingerprint collection: [`Sources/DynalinksSDK/Internal/DeviceFingerprint.swift`](https://github.com/dynalinks/dynalinks-ios-sdk/blob/main/Sources/DynalinksSDK/Internal/DeviceFingerprint.swift)
+- Network layer: [`Sources/DynalinksSDK/Internal/APIClient.swift`](https://github.com/dynalinks/dynalinks-ios-sdk/blob/main/Sources/DynalinksSDK/Internal/APIClient.swift)
+
+## Questions
+
+For compliance, security, or legal review questions, contact us at [admins@dynalinks.app](mailto:admins@dynalinks.app).

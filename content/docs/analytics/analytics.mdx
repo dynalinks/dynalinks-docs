@@ -1,0 +1,98 @@
+---
+title: "Stats and analytics"
+---
+
+Dynalinks counts how often your links are opened and how many app installs they lead to. You can see these numbers in two places in the Console:
+
+- **Analytics** (top navigation bar): clicks and installations over time, by platform, by country, and per link.
+- **Statistics** (under **Settings**): how many links your project has created over time.
+
+Every project member can open both pages, including members with the **Viewer** role. See [Team members and roles](/team/team-members) for details.
+
+---
+
+## Analytics
+
+Open your project and click **Analytics** in the top navigation bar. The page has two tabs:
+
+- **Clicks**: how often your links were opened.
+- **Installations**: how many app installs were attributed to your links.
+
+Both tabs share the same layout:
+
+| Section | What it shows |
+|:--------|:--------------|
+| **Total Clicks** / **Total App Installations** | The total for the selected date range. |
+| **Clicks Over Time** / **Installations Over Time** | A line chart of the same total, split into time buckets. |
+| **Platform Breakdown** | A donut chart split by platform. |
+| **Top Countries** | The 10 countries with the most events. |
+| **Top Performing Links** / **Top Links by Installations** | The 10 links with the most events, with their name and path. |
+
+Links that have been deleted since the event was recorded do not appear in the top links table, but their events still count towards the totals and charts.
+
+### Date ranges
+
+Choose a period with the **Date Range** buttons at the top of each tab:
+
+| Option | Period covered | Chart buckets |
+|:-------|:---------------|:--------------|
+| **Last 24 hours** | The last 24 hours | Hourly |
+| **Last 7 days** | From the start of the day 7 days ago until now | Daily |
+| **Last 30 days** | From the start of the day 30 days ago until now | Daily |
+| **Last 90 days** | From the start of the day 90 days ago until now | Weekly |
+| **Last year** | From the start of the day one year ago until now | Monthly |
+| **All time** | Up to the last 2 years | Monthly |
+
+Days, weeks and months are calculated in UTC.
+
+<ProFeature message="On the free plan, analytics are limited to the last 24 hours. The Pro plan unlocks every date range, with up to 2 years of history." />
+
+On the free plan the other date range buttons are shown but disabled, and the page always displays the last 24 hours.
+
+---
+
+## What counts as a click
+
+A click is recorded each time one of your links is opened:
+
+- **In a browser.** Someone opens the link and Dynalinks serves the link page (or redirects them from it). These clicks appear as **Web** in the **Platform Breakdown**, whatever device the visitor uses.
+- **In your app.** Your app receives the link directly (through Universal Links or App Links) and passes it to the Dynalinks SDK. These clicks appear as **iOS** or **Android**.
+
+Some things are not counted:
+
+- Visits from known bots and crawlers, such as the link preview fetchers used by messaging apps and social networks, are not counted as browser clicks.
+- Opens of [unnamed links](/api/unnamed-links) are not counted. Only links saved in your project are tracked.
+- A URL that does not match any link in your project is not counted.
+
+The country of a click is based on the visitor's IP address. When it cannot be determined, the click is grouped under **Unknown**.
+
+<Callout title="Note">
+To track opens that happen inside your app, integrate the Dynalinks SDK. Without it, the **Platform Breakdown** only shows **Web** clicks. See the SDK guides for [iOS](/ios/sdk), [Android](/android/sdk), [Flutter](/flutter/sdk) and [React Native](/react-native/sdk).
+</Callout>
+
+### Click counts in the links list
+
+The **Links** page also shows a click count for each link. This is the link's all-time total, not limited by your plan's date range. It is refreshed periodically, so it can take up to about an hour for new clicks to appear there. The **Analytics** page shows new clicks sooner.
+
+---
+
+## What counts as an installation
+
+An installation is recorded when your app is opened for the first time after being installed from one of your links, and the Dynalinks SDK attributes that install to the link. This is the same check your app makes to receive a [deferred deep link](/deferred/deferred-ios), so installations only appear once your app calls the SDK's deferred deep link check on first launch.
+
+- **iOS**: installs are attributed as described in [iOS attribution and deferred deep linking](/deferred/deferred-ios).
+- **Android**: installs are attributed through the Google Play Install Referrer, as described in [Android deferred deep linking](/deferred/deferred-android). This requires the **Link in Referrer** setting to be enabled in [Analytics configuration](/analytics/analytics-configuration).
+
+Keep in mind:
+
+- The number is attributed installs, not every install of your app. Installs that did not come from a Dynalinks link, or that could not be matched to one, are not included. For your total install count, use App Store Connect and the Google Play Console.
+- Only links saved in your project are counted. Installs that come from [unnamed links](/api/unnamed-links) still receive their deep link, but they do not appear in **Installations**.
+- Android installs attributed through the Install Referrer do not include a country, so they are grouped under **Unknown** in **Top Countries**.
+
+---
+
+## Statistics
+
+Open **Settings** and choose **Statistics**. The page shows a single chart, **Links Created Over Time**: the number of links created in your project each week over the last year. It includes links created in the Console and through the API.
+
+This page is available on all plans.

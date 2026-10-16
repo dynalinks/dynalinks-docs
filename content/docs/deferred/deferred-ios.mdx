@@ -1,0 +1,290 @@
+---
+title: "iOS Attribution and Deferred Deep Linking"
+---
+
+<ProFeature />
+
+Dynalinks offers **three methods** for iOS attribution and deferred deep linking, giving you flexibility in how you track user acquisition and handle app installations. All methods are available on PRO plans.
+
+| Method | User Interaction | Best For |
+|--------|-----------------|----------|
+| [Clipboard-Based](#method-1-clipboard-based-deferred-deep-linking) | Requires paste | Universal compatibility |
+| [Apple Campaign Tracking](#method-2-apple-campaign-tracking) | None | App Store analytics |
+| [iOS SDK](#method-3-dynalinks-ios-sdk) | None | Seamless fingerprint matching |
+
+## Method 1: Clipboard-Based Deferred Deep Linking
+
+Our original clipboard-based solution works universally across all iOS versions and provides reliable deferred deep linking.
+
+### How It Works
+
+You can enable **iOS Deferred Deep Linking** by setting the parameter `ios_deferred_deep_linking_enabled` to `true` when generating a Dynalink.
+
+If a user **does not have your app installed** and clicks on one of your Dynalinks, they will be directed to a **preview landing page** that provides context about the link. This page will include a **"Download on the App Store"** button to prompt the user to install the app.
+
+Once the user taps this button and is redirected to the App Store, the deep link URL associated with the Dynalink will be **automatically copied to the device's clipboard**.
+
+### Implementation in Swift
+
+To retrieve this copied URL after your app is installed and launched, you can use the `UIPasteboard` API in Swift:
+
+```swift
+func handleClipboardIfNeeded() {
+    // You may want to check this only on first launch
+    let pasteboard = UIPasteboard.general
+
+    if let clipboardText = pasteboard.string,
+       clipboardText.hasPrefix("https://{your-project}.dynalinks.app") {
+
+        // Handle your referral or deep link
+        print("Found deep link in clipboard: \(clipboardText)")
+
+        // TODO: Route user or save referral info, etc.
+        // e.g., DeepLinkHandler.handle(url: clipboardText)
+
+        // Optionally clear the clipboard (user privacy)
+        // pasteboard.string = nil
+    }
+}
+```
+
+<Callout title="Note">
+**Important note**  
+iOS requires explicit user consent when an app accesses the clipboard, especially if the app is running in the foreground. Be mindful of this to avoid any disruptions in user experience.
+</Callout>
+
+### User-Friendly Paste Button Approach
+
+If you want to avoid automatic clipboard access, you can use [PasteButton](https://developer.apple.com/documentation/swiftui/pastebutton):
+
+```swift
+PasteButton(payloadType: String.self) { strings in
+    print("Pasted deep link: \(strings.first ?? "N/A")")
+}
+```
+
+This provides a built-in button that allows users to paste content into your app explicitly, removing the need for silent clipboard access.
+
+For example, you might show a prompt like:
+
+```swift
+VStack(spacing: 16) {
+    Text("Did you install this app from a shared link?")
+        .font(.headline)
+    Text("Tap the button below to let us know which link brought you here.")
+        .font(.subheadline)
+        .multilineTextAlignment(.center)
+
+    PasteButton(payloadType: String.self) { strings in
+        if let pasted = strings.first,
+           pasted.hasPrefix("https://{your-project}.dynalinks.app") {
+            print("Received deep link: \(pasted)")
+            // DeepLinkHandler.handle(url: pasted)
+        }
+    }
+    .buttonStyle(.borderedProminent)
+}
+```
+
+### React Native Support
+
+To replicate iOS Deferred Deep Linking functionality in React Native, you can use the [Clipboard API](https://reactnative.dev/docs/clipboard):
+
+```bash
+npx expo install @react-native-clipboard/clipboard
+```
+
+Check the clipboard on app start:
+
+```tsx
+import Clipboard from '@react-native-clipboard/clipboard';
+import { useEffect } from 'react';
+
+useEffect(() => {
+  const checkClipboard = async () => {
+    const text = await Clipboard.getString();
+    if (text.startsWith('https://{your-project}.dynalinks.app')) {
+      console.log('Found deep link in clipboard:', text);
+      // Handle deep link routing here
+    }
+  };
+
+  checkClipboard();
+}, []);
+```
+
+User-friendly paste button implementation:
+
+```tsx
+import React from 'react';
+import { Button, Text, View, Alert } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
+
+export default function DeepLinkPrompt() {
+  const handlePaste = async () => {
+    const text = await Clipboard.getString();
+    if (text.startsWith('https://{your-project}.dynalinks.app')) {
+      Alert.alert('Found Deep Link', text);
+      // Handle the deep link
+    } else {
+      Alert.alert('No valid link found');
+    }
+  };
+
+  return (
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>
+        Did you install this app from a shared link?
+      </Text>
+      <Text style={{ marginBottom: 12 }}>
+        Tap the button below to let us know which link brought you here.
+      </Text>
+      <Button title="Paste Link" onPress={handlePaste} />
+    </View>
+  );
+}
+```
+
+---
+
+## Method 2: Apple Campaign Tracking
+
+Apple Campaign Tracking is Apple's official method for campaign attribution and provides native App Store integration for marketing campaigns.
+
+### What is Apple Campaign Tracking?
+
+Apple Campaign Tracking allows you to track marketing campaigns by adding specific parameters to your App Store URLs. When users install your app through these tracked links, you can attribute the installation to the correct marketing source and campaign.
+
+This is Apple's official method for campaign attribution, as detailed in their [App Store Connect documentation](https://developer.apple.com/help/app-store-connect/view-app-analytics/manage-campaigns/).
+
+### How It Works
+
+When you add campaign tracking parameters to your links, Dynalinks automatically generates App Store URLs with the proper attribution parameters:
+
+**Standard App Store URL:**
+```
+https://apps.apple.com/app/id123456789
+```
+
+**With Campaign Tracking:**
+```
+https://apps.apple.com/app/id123456789?pt=123456&ct=holiday2024&mt=8
+```
+
+#### Parameters Explained
+
+- **`pt` (Provider Token)**: Your Apple affiliate program provider token
+- **`ct` (Campaign Token)**: Your custom campaign identifier
+- **`mt=8`**: Automatically added to indicate this is a mobile app link
+
+### Setting Up Campaign Tracking
+
+#### Via API
+
+Add `provider_token` and `campaign_token` to your link creation requests:
+
+```json
+{
+  "name": "Holiday Campaign Link",
+  "path": "holiday-sale",
+  "url": "https://myapp.com/holiday",
+  "provider_token": "123456",
+  "campaign_token": "holiday2024",
+  "ios_app": {
+    "bundle_id": "com.mycompany.myapp",
+    "app_store_id": "123456789"
+  }
+}
+```
+
+#### Via Console
+
+1. Navigate to your project's Links section
+2. Create or edit a link
+3. In the Attribution section (after the Referrer field), you'll find two new fields:
+    - **Apple Provider Token**: Your affiliate program provider token
+    - **Campaign Token**: Your custom campaign identifier
+4. Both parameters are required together
+5. These fields are only available for PRO projects
+
+#### Via Unnamed Links
+
+Add campaign parameters directly to your URLs:
+
+```
+https://yourproject.dynalinks.app/?link=https://myapp.com/content&ibi=com.mycompany.myapp&pt=123456&ct=holiday2024
+```
+
+### App Store Connect Analytics
+
+Campaign attribution is also available through Apple's App Store Connect analytics, providing detailed insights into:
+
+- Installation sources
+- Campaign performance
+- User acquisition costs
+- Conversion rates
+
+---
+
+## Method 3: Dynalinks iOS SDK
+
+The Dynalinks iOS SDK provides **fingerprint-based deferred deep linking** that works automatically without any user interaction. Unlike clipboard-based solutions, users don't need to paste anything or grant clipboard permissions.
+
+### How It Works
+
+1. User clicks a Dynalinks link (app not installed)
+2. Web page collects device fingerprint (screen size, OS version, timezone, etc.)
+3. User installs app from App Store
+4. App calls `checkForDeferredDeepLink()` on launch
+5. SDK collects device fingerprint and sends to server
+6. Server matches fingerprints and returns the original link
+
+### Installation
+
+Add the SDK via Swift Package Manager:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/dynalinks/dynalinks-ios-sdk", from: "1.0.0")
+]
+```
+
+### Quick Start
+
+```swift
+import DynalinksSDK
+
+// Configure on app launch
+try Dynalinks.configure(clientAPIKey: "your-client-api-key")
+
+// Check for deferred deep link
+let result = try await Dynalinks.checkForDeferredDeepLink()
+if result.matched, let link = result.link {
+    // Navigate to link.deepLinkValue
+}
+```
+
+### Advantages
+
+- No user interaction required
+- No clipboard permission prompts
+- Works with iOS privacy restrictions
+- Also handles Universal Links via `handleUniversalLink(url:)`
+
+### Apple App Store Compliance
+
+The SDK uses **first-party** install attribution only: no IDFA, no ATT prompt and no data broker sharing. Web-side fingerprints are matched within a **10-minute, single-use** window, which is consistent with Apple's App Store Review Guidelines and does not constitute *Tracking* under Apple's [User Privacy and Data Use](https://developer.apple.com/app-store/user-privacy-and-data-use/) policy.
+
+For the full compliance breakdown, including the exact data fields collected, App Privacy Manifest guidance, and App Review talking points, see [iOS Privacy & Apple App Store Compliance](/ios/privacy-compliance).
+
+**Full documentation**: [iOS SDK Integration Guide](/ios/sdk)
+
+---
+
+## Validation Requirements
+
+Both `provider_token` and `campaign_token` must be provided together for Apple Campaign Tracking. Attempting to set only one parameter will result in a validation error.
+
+For clipboard-based deferred deep linking, simply set `ios_deferred_deep_linking_enabled` to `true`.
+
+For SDK-based fingerprint matching, integrate the [Dynalinks iOS SDK](/ios/sdk).

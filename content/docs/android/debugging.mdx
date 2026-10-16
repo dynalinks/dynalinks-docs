@@ -1,0 +1,224 @@
+---
+title: "Debugging - Link Not Opening"
+---
+
+When your Android deep links aren't opening the app as expected, this guide will help you diagnose and fix the issue using Android's built-in debugging tools.
+
+---
+
+## Android Debug Bridge (ADB) Commands
+
+The most effective way to debug Android app links is using ADB commands to test and verify your configuration:
+
+### Step 1: Test Link Opening
+Test if your app opens with a specific URL:
+
+```bash
+adb shell am start -a android.intent.action.VIEW \
+    -c android.intent.category.BROWSABLE \
+    -d "https://your-app.dynalinks.app/your/path"
+```
+
+**Expected Result:** Your app should open directly to the specified path.
+
+### Step 2: Verify App Links Configuration
+Check your app's link verification status:
+
+```bash
+adb shell pm get-app-links com.yourcompany.yourapp
+```
+
+This will show:
+- **App ID** and **Signatures** (SHA-256 fingerprints)
+- **Domain verification state** for each domain
+- **Verification status codes**
+
+### Step 3: Re-verify App Links
+Force Android to re-verify your app links:
+
+```bash
+adb shell pm verify-app-links --re-verify com.yourcompany.yourapp
+```
+
+Run this after making changes to your digital asset links file.
+
+---
+
+## Understanding Verification Status Codes
+
+When checking app links with `pm get-app-links`, you'll see status codes:
+
+- **1024**: Custom error code that's specific to the device's verifier.
+- **1026**: Verification failed - check the Digital Asset Links file
+- **1027**: Verification pending ⏳
+
+More info: [Verify Android App Links](https://developer.android.com/training/app-links/verify-android-applinks)
+
+---
+
+## Important testing notes
+
+### URLs Cannot Be Pasted into Browser Address Bar
+> **Note:** Entering the URL directly into the web browser's address bar will never open the app, as this is direct navigation within the web browser. As long as the user is on your domain after navigating there directly, your site will show a banner to open your app.
+
+### Proper Testing Methods
+Test your links by:
+- Clicking links in **emails** or **messaging apps**
+- Tapping links in **social media apps**
+- Using the **ADB command** shown above
+- Sharing URLs through other apps
+- Opening links from **web pages** (not direct navigation)
+
+---
+
+## Common issues and solutions
+
+### Issue 1: Digital Asset Links File Issues
+**Problem:** Domain verification status shows failure (code 1026).
+
+**Solution:**
+1. Verify your `.well-known/assetlinks.json` file is accessible:
+   ```
+   https://your-app.dynalinks.app/.well-known/assetlinks.json
+   ```
+2. Ensure the file is served over **HTTPS** (not HTTP)
+3. Check that SHA-256 fingerprints match your app's signing certificate
+4. Verify the package name matches exactly
+
+### Issue 2: Package Name Mismatch
+**Problem:** Your app has different package names for debug/release builds.
+
+**Solution:**
+- Debug builds often have suffixes like `.debug` or `.staging`
+- Make sure your Dynalinks Android app configuration matches the package name you're testing with
+- For production testing, use the exact package name from your Play Store build
+
+### Issue 3: Certificate Fingerprint Mismatch
+**Problem:** App links verification fails due to wrong SHA-256 fingerprint.
+
+**Solution:**
+1. Get your app's SHA-256 fingerprint:
+   ```bash
+   keytool -list -v -keystore your-release-key.keystore
+   ```
+2. For debug builds, check your debug keystore
+3. Ensure the fingerprint in your Dynalinks configuration matches exactly
+4. Keep the colons: paste the fingerprint as `keytool` prints it (for example `AB:CD:12:...`). Fingerprints without colons are rejected
+
+### Issue 4: Intent Filter Configuration
+**Problem:** App doesn't respond to links even when verification passes.
+
+**Solution:**
+Check your `AndroidManifest.xml` has proper intent filters:
+
+```xml
+<activity
+    android:name=".MainActivity"
+    android:exported="true">
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https"
+              android:host="your-app.dynalinks.app" />
+    </intent-filter>
+</activity>
+```
+
+---
+
+## Advanced debugging
+
+### Check Digital Asset Links File
+Verify your app's digital asset links configuration at:
+```
+https://your-app.dynalinks.app/.well-known/assetlinks.json
+```
+
+This shows the current package name and SHA-256 fingerprints that Dynalinks is configured to use.
+
+### Testing with Different App Versions
+- **Debug builds**: Often have different package names and certificates
+- **Release builds**: Must match exactly what's configured in Dynalinks
+- **Play Store builds**: May have different signing certificates (App Signing by Google Play)
+
+### Required Code Implementation
+Ensure your app handles incoming links in your main Activity:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.let { handleIntent(it) }
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val data = intent.data
+        if (data != null && intent.action == Intent.ACTION_VIEW) {
+            // Handle the deep link
+            val path = data.path
+            // Navigate to appropriate screen
+        }
+    }
+}
+```
+
+---
+
+## Device-specific issues
+
+### Android Link Handling Cache
+- Android caches app link verification results
+- Clear app data or reinstall the app to refresh verification
+- Try testing on different devices to rule out device-specific issues
+- Use `pm verify-app-links --re-verify` to force re-verification
+
+### Default App Settings
+- Check if another app is set as the default for your domain
+- Go to **Settings** > **Apps** > **Default Apps** > **Opening Links**
+- Find your app and ensure it's set to "Open supported links"
+
+### Fallback Behavior
+If app links fail, your app should:
+- Handle the fallback URL gracefully
+- Show the Play Store page with an "Install" or "Open" button
+- Provide a web-based experience until the app issue is resolved
+
+---
+
+## SDK debug logging
+
+If you're using the [Dynalinks Android SDK](/android/sdk), enable debug logging for detailed diagnostics:
+
+```kotlin
+Dynalinks.configure(
+    context = this,
+    clientAPIKey = "your-api-key",
+    logLevel = DynalinksLogLevel.DEBUG  // Shows all SDK activity
+)
+```
+
+This will log Install Referrer data, API responses, and any errors to Logcat.
+
+---
+
+## 🆘 Still Having Issues?
+
+If ADB commands show verification is successful but links still don't work:
+
+1. **Clear app data and cache** - This resets Android's link handling
+2. **Test on a different device** - Rules out device-specific configuration issues
+3. **Check your app's intent handling code** - Ensure proper implementation
+4. **Verify Play Store vs debug builds** - Certificate differences are common
+
+For additional support, contact our team with:
+- Output from `adb shell pm get-app-links com.yourpackage.name`
+- Screenshots of your digital asset links file
+- Your app's package name and SHA-256 fingerprint
+- The specific link you're testing
+- Device model and Android version

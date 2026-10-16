@@ -1,0 +1,74 @@
+---
+title: "Appearance settings"
+---
+
+When someone opens one of your links in a browser, Dynalinks serves a link page (the preview page with your link's title, description, image and store buttons). Besides the visible content, that page includes meta tags in its HTML head that browsers and other apps read. **Appearance Settings** let you turn two groups of those tags off for the whole project.
+
+To change them, open your project, go to **Settings**, choose **Advanced Settings** and click **Edit Appearance Settings**. Only the project Owner and Managers can open Advanced Settings (see [Team members and roles](/team/team-members)).
+
+The **Advanced Settings** page shows the current state of both options:
+
+- **Apple iTunes App meta tag**: **Visible** or **Hidden**
+- **Facebook App Links meta tags**: **Enabled** or **Disabled**
+
+Both options are off by default, so both groups of tags are included. Changes apply to all links in the project as soon as you click **Update Appearance Settings**.
+
+---
+
+## Hide Apple iTunes App meta tag
+
+By default, if the iOS app on a link has an **App store** ID, the link page includes an `apple-itunes-app` meta tag:
+
+```html
+<meta name="apple-itunes-app" content="app-id=123456789">
+```
+
+Safari on iOS reads this tag and shows a [Smart App Banner](https://developer.apple.com/documentation/webkit/promoting-apps-with-smart-app-banners) at the top of the page, offering to download (or open) your app.
+
+If the iOS app also has an **App Clip Bundle ID**, the same tag points to your App Clip, so iOS can show an App Clip card instead:
+
+```html
+<meta name="apple-itunes-app" content="app-id=123456789, app-clip-bundle-id=com.example.app.Clip, app-clip-display=card">
+```
+
+Check **Hide Apple iTunes App meta tag** to leave this tag out. The Smart App Banner and the App Clip card no longer appear on your link pages. The App Store button on the page is not affected.
+
+Consider hiding it if the banner duplicates your own App Store button, or if it gets in the way of your page design.
+
+---
+
+## Disable Facebook App Links meta tags
+
+By default, the link page includes [App Links](https://developers.facebook.com/docs/applinks/) meta tags. Facebook and other apps that support App Links use them to open your app directly, or send users to the store, when a link is tapped inside their app.
+
+Depending on how your iOS and Android apps are configured, the tags look like this:
+
+```html
+<meta property="al:ios:url" content="myapp://example.dynalinks.app/...">
+<meta property="al:ios:app_store_id" content="123456789">
+<meta property="al:ios:app_name" content="My App">
+<meta property="al:android:url" content="myapp://example.dynalinks.app/...">
+<meta property="al:android:package" content="com.example.app">
+<meta property="al:android:app_name" content="My App">
+<meta property="al:web:url" content="https://www.example.com/">
+```
+
+- `al:ios:url` and `al:android:url` are only included when the app has a **Custom URL Scheme**.
+- The app names come from the app's **App name** field, or the project name if that field is empty.
+- `al:web:url` is the link's **URL**.
+
+Check **Disable Facebook App Links meta tags** to leave all of these tags out.
+
+<Callout title="Note">
+This setting only removes the App Links tags. The social preview tags that control the title, description and image shown when a link is shared (Open Graph and Twitter Card tags) are always included.
+</Callout>
+
+---
+
+## Full control over the link page
+
+Appearance settings only switch individual tags on or off. To design the whole link page yourself, with your own HTML and CSS, see [Page templates](/advanced/page-templates).
+
+<ComingSoon />
+
+<ProFeature message="Page templates will be available on the Pro plan." />
