@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
+    "postbuild": "node scripts/write-redirects.mjs",
     "dev": "next dev",
     "start": "serve out",
     "types:check": "next typegen && tsc --noEmit",
