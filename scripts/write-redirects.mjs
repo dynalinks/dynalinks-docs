@@ -13,6 +13,7 @@ function redirectPage(target, basePath) {
 <head>
 <meta charset="utf-8">
 <title>Moved</title>
+<script>location.replace("${url}" + location.hash)</script>
 <meta http-equiv="refresh" content="0; url=${url}">
 <link rel="canonical" href="${SITE_URL}${target}">
 <meta name="robots" content="noindex">

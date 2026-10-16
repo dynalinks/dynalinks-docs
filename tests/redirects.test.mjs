@@ -70,6 +70,18 @@ test("redirect pages point at the new page", () => {
   assert.ok(html.includes(`<a href="${BASE_PATH}/start/getting-started">`));
 });
 
+test("redirect pages keep the #anchor", () => {
+  const html = readOut(outFileFor("/start/getting_started.html"));
+  const script = html.indexOf(
+    `location.replace("${BASE_PATH}/start/getting-started" + location.hash)`,
+  );
+  assert.ok(script > -1, "no anchor-preserving redirect script");
+  assert.ok(
+    script < html.indexOf('http-equiv="refresh"'),
+    "the script must run before the meta refresh",
+  );
+});
+
 test("a URL that is already the new page is not overwritten", () => {
   const html = readOut(outFileFor("/start/plans.html"));
   assert.doesNotMatch(html, /http-equiv="refresh"/);
