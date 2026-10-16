@@ -92,3 +92,24 @@ test("no Jekyll syntax left", () => {
   }
   assert.deepEqual(leftovers, []);
 });
+
+test("the authorization guide covers master keys", () => {
+  const html = readOut(outFileFor("/api/authorization"));
+  assert.ok(html.includes("Master API key"), "no master-key section");
+  assert.ok(
+    html.includes("user, not a project"),
+    "master keys are not explained as a user-level key",
+  );
+  assert.ok(
+    html.includes(`href="${BASE_PATH}/reference/projects/list-projects"`),
+    "the guide does not link to the master-key endpoints",
+  );
+});
+
+test("the page-template guide points at the API reference", () => {
+  const html = readOut(outFileFor("/advanced/page-templates"));
+  assert.ok(
+    html.includes(`href="${BASE_PATH}/reference/page-templates/get-page-template"`),
+    "the page-template guide does not link to the reference",
+  );
+});

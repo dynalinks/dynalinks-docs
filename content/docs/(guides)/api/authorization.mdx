@@ -38,3 +38,25 @@ curl --request POST \
      --header 'Authorization: Token myApiKey' \
      --data '{"name": "Example Dynamic Link", "path": "examples/1", "url": "https://my-website.com/example"}'
 ```
+
+## Master API keys
+
+Most endpoints take a **project API key**: it belongs to one project, and it can
+only touch that project.
+
+A few endpoints take a **master API key** instead. A master key belongs to your
+**user, not a project**, so it can work across every project you own:
+
+- everything under [Projects](/reference/projects/list-projects), including
+  creating and deleting projects and verifying a custom domain;
+- everything under [API keys](/reference/api-keys/list-api-keys), which manages
+  the project keys themselves.
+
+Send a master key the same way as a project key, in the `Authorization: Token
+<key>` header. With a project key those endpoints answer `401 API key is not
+master`; that error means the key itself is fine and the endpoint wants a master
+key.
+
+Master API access is switched on per account by Dynalinks. Once it is on, create
+the key in the Console under **Master API keys**. Treat it like a password for
+your whole account: it is not limited to one project.
