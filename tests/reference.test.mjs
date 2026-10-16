@@ -171,3 +171,49 @@ test("overview documents the same auth header as the guides", () => {
   assert.match(overview, /Authorization: Token <key>/);
   assert.doesNotMatch(overview, /Bearer/);
 });
+
+// The whole spec rides along inside every page as JSON, so "the text appears
+// in the HTML" proves nothing. These are the callouts the reader sees.
+function callouts(html) {
+  return [...html.matchAll(/prose-no-margin empty:hidden">([^<]*)</g)].map(
+    ([, text]) => text,
+  );
+}
+
+test("every group explains who can call it", () => {
+  const notes = {
+    "api-keys": "Requires a master API key.",
+    projects: "Requires a master API key.",
+    "page-templates": "Requires page-template access",
+  };
+  for (const [group, note] of Object.entries(notes)) {
+    for (const page of REFERENCE_PAGES[group]) {
+      const shown = callouts(readOut(outFileFor(`/reference/${group}/${page}`)));
+      assert.ok(
+        shown.some((text) => text.includes(note)),
+        `${group}/${page} shows no callout with "${note}"`,
+      );
+    }
+  }
+  for (const [group, page] of [
+    ["api-keys", "list-api-keys"],
+    ["projects", "create-project"],
+    ["page-templates", "update-page-template"],
+  ]) {
+    const shown = callouts(readOut(outFileFor(`/reference/${group}/${page}`)));
+    assert.ok(
+      shown.some((text) => text.includes("Experimental: the request")),
+      `${group}/${page} shows no experimental callout`,
+    );
+  }
+});
+
+test("the existing groups keep their own one-liner", () => {
+  const shown = callouts(readOut(outFileFor("/reference/links/list-links")));
+  assert.ok(
+    shown.some((text) =>
+      text.includes("Create, update, look up and delete dynamic links."),
+    ),
+    "Links pages show no group note",
+  );
+});
