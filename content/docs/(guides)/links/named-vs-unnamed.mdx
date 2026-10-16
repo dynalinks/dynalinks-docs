@@ -4,7 +4,7 @@ title: "Named vs unnamed links"
 
 Dynalinks supports two kinds of links:
 
-- **Named links** are created in the [Console](/links/creating-links) or with the [REST API](https://dynalinks.readme.io). Each one is saved in your project under its own path, for example `https://your-project.dynalinks.app/products/5`.
+- **Named links** are created in the [Console](/links/creating-links) or with the [REST API](/reference). Each one is saved in your project under its own path, for example `https://your-project.dynalinks.app/products/5`.
 - **Unnamed links** are not created anywhere. You build the URL yourself, with all settings passed as query parameters, for example `https://your-project.dynalinks.app/?link=https%3A%2F%2Fexample.com%2Fproducts%2F5&ibi=com.example.app&apn=com.example.app`. The parameters are listed in [Unnamed links](/api/unnamed-links).
 
 Both kinds open your app, fall back to the stores or your website, and show a preview page in the same way. The differences are in how they are managed and measured.
@@ -57,4 +57,4 @@ Both kinds open your app, fall back to the stores or your website, and show a pr
 - you are migrating from Firebase Dynamic Links and already build long links in that format (the parameter names match),
 - you do not need per-link statistics or the ability to edit a link after it is shared.
 
-If you generate links in code but still want statistics and editing, create named links with the API instead. The [`upsert` endpoint](https://dynalinks.readme.io/reference/post_links-upsert) creates a link or updates the existing one with the same path in a single call.
+If you generate links in code but still want statistics and editing, create named links with the API instead. The [`upsert` endpoint](/reference/links/upsert-link) creates a link or updates the existing one with the same path in a single call.

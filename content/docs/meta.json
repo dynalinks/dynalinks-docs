@@ -1,18 +1,3 @@
 {
-  "pages": [
-    "index",
-    "start",
-    "ios",
-    "android",
-    "react-native",
-    "flutter",
-    "integrations",
-    "deferred",
-    "api",
-    "fallbacks",
-    "links",
-    "analytics",
-    "advanced",
-    "team"
-  ]
+  "pages": ["(guides)", "reference"]
 }

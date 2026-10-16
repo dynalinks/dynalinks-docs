@@ -1,0 +1,11 @@
+{
+  "title": "iOS apps",
+  "pages": [
+    "list-ios-apps",
+    "create-ios-app",
+    "get-ios-app",
+    "update-ios-app",
+    "delete-ios-app",
+    "..."
+  ]
+}

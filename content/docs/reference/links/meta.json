@@ -1,0 +1,12 @@
+{
+  "title": "Links",
+  "pages": [
+    "list-links",
+    "create-link",
+    "upsert-link",
+    "get-link",
+    "update-link",
+    "delete-link",
+    "..."
+  ]
+}

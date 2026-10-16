@@ -1,0 +1,21 @@
+{
+  "title": "Guides",
+  "description": "SDKs, links and features",
+  "root": true,
+  "pages": [
+    "index",
+    "start",
+    "ios",
+    "android",
+    "react-native",
+    "flutter",
+    "integrations",
+    "deferred",
+    "api",
+    "fallbacks",
+    "links",
+    "analytics",
+    "advanced",
+    "team"
+  ]
+}
