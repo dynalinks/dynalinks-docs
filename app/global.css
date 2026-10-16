@@ -2,6 +2,15 @@
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
 
+:root {
+  --color-fd-primary: #0d6efd;
+  --color-fd-primary-foreground: #ffffff;
+}
+
+.dark {
+  --color-fd-primary: #4d94ff;
+}
+
 html {
   scrollbar-gutter: stable;
 }
