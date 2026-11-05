@@ -13,9 +13,13 @@ The Dynalinks Flutter SDK provides **deferred deep linking** and **Universal Lin
 
 ## Requirements
 
-- Flutter 3.3.0 or later
+- Flutter 3.44 or later (Dart 3.12 or later)
 - iOS 16.0 or later
 - Android API 21 or later
+
+On iOS the plugin builds with either Swift Package Manager (the default from Flutter 3.44) or CocoaPods. It ships a privacy manifest, so its data use is included in your app's privacy report automatically.
+
+Upgrading from 1.x? See [Upgrading from 1.x](#upgrading-from-1x).
 
 ## Installation
 
@@ -23,7 +27,7 @@ Add `dynalinks` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dynalinks: ^1.0.3
+  dynalinks: ^2.0.0
 ```
 
 Then run:
@@ -44,7 +48,31 @@ flutter pub get
    - Add the "Associated Domains" capability
    - Add your domain: `applinks:yourproject.dynalinks.app`
 
+3. **Set the iOS deployment target to 16.0**:
+   - Open `ios/Runner.xcworkspace`, select the **Runner** target, and go to **General > Minimum Deployments**
+   - Set iOS to 16.0 or later
+   - If your project uses CocoaPods, also set `platform :ios, '16.0'` in `ios/Podfile`
+
+   Flutter's default is lower, so a project created from the Flutter template fails to build until you raise it. See [Build fails with a minimum platform version error](/flutter/debugging#build-fails-with-a-minimum-platform-version-error).
+
 See the [iOS integration guide](/ios/setup) for detailed instructions.
+
+#### UIScene life cycle
+
+The plugin receives links through both the app delegate and the scene delegate, so it works whichever life cycle your app uses. If your app has not adopted the UIScene life cycle yet, `flutter run` migrates it for you.
+
+Under UIScene, a link that launches the app is delivered while the scene connects, so plugins must be registered by then. The automatic migration takes care of this. If you maintain `ios/Runner/AppDelegate.swift` by hand, register plugins in `didInitializeImplicitFlutterEngine`, not in `didFinishLaunchingWithOptions`:
+
+```swift
+@main
+@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+  }
+}
+```
+
+If you register plugins later, the plugin is not listening yet when the launch link arrives, and cold-start links are missed.
 
 ### Android Setup
 
@@ -52,10 +80,10 @@ See the [iOS integration guide](/ios/setup) for detailed instructions.
    - Package identifier (from `build.gradle` applicationId)
    - SHA-256 certificate fingerprint (run `./gradlew signingReport`)
 
-2. **Add JitPack repository** to your project's `android/settings.gradle.kts`:
+2. **Add the JitPack repository** to `android/build.gradle.kts`, where the Flutter template declares its repositories:
 
 ```kotlin
-dependencyResolutionManagement {
+allprojects {
     repositories {
         google()
         mavenCentral()
@@ -64,24 +92,12 @@ dependencyResolutionManagement {
 }
 ```
 
-Or if using `android/build.gradle`:
+If your project declares repositories in a `dependencyResolutionManagement` block in `android/settings.gradle.kts` instead, add it there.
 
-```groovy
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url 'https://jitpack.io' }
-    }
-}
-```
-
-3. **Add intent filter** to your `android/app/src/main/AndroidManifest.xml`:
+3. **Add an intent filter** to your existing `MainActivity` in `android/app/src/main/AndroidManifest.xml`. Leave the rest of the activity as Flutter generated it. You do not need to change `launchMode`.
 
 ```xml
-<activity
-    android:name=".MainActivity"
-    android:launchMode="singleTask">
+<activity android:name=".MainActivity">
 
     <intent-filter android:autoVerify="true">
         <action android:name="android.intent.action.VIEW" />
@@ -96,6 +112,10 @@ allprojects {
 
 See the [Android integration guide](/android/setup) for detailed instructions.
 
+<Callout title="Note">
+The plugin uses Flutter's built-in Kotlin support and builds under AGP 9. It compiles against Java 17, so if your app pins an older JVM target you may need to raise it.
+</Callout>
+
 ## Setup
 
 ### Configure the SDK
@@ -103,6 +123,7 @@ See the [Android integration guide](/android/setup) for detailed instructions.
 Initialize the SDK as early as possible in your app's lifecycle:
 
 ```dart
+import 'package:flutter/material.dart';
 import 'package:dynalinks/dynalinks.dart';
 
 void main() async {
@@ -171,7 +192,16 @@ Future<void> checkDeferredDeepLink() async {
 
 ### Handle Incoming Deep Links
 
-Listen for links that open your app while it's running:
+Incoming links reach your app through two separate channels, and you need **both**:
+
+- `getInitialLink()`: the link that launched the app from a terminated state (cold start).
+- `onDeepLinkReceived`: links that arrive while the app is already running (warm start).
+
+A launch link is delivered only through `getInitialLink()`, even if a stream listener is already attached. This keeps a single tap from being delivered twice, but it also means an app that only subscribes to the stream never sees cold-start links.
+
+A link that arrives while no listener is attached is held and delivered to the next listener, so a tap during a route change is not lost. The SDK keeps the 32 most recent queued links and drops the oldest when that limit is reached.
+
+`getInitialLink()` answers once. If it has already returned `null`, a launch link that resolves afterwards (after a very slow first request, or a failed `configure()` that you retried) arrives on the stream instead. Handling both channels, as below, covers this.
 
 ```dart
 class _MyAppState extends State<MyApp> {
@@ -261,6 +291,9 @@ class LinkData {
   final String? socialDescription;    // Social sharing description
   final Uri? socialImageUrl;          // Social sharing image
   final int? clicks;                  // Number of clicks on this link
+  final String? referrer;             // Referrer tracking parameter for attribution
+  final String? providerToken;        // Apple Search Ads attribution token (pt)
+  final String? campaignToken;        // Campaign identifier for attribution (ct)
 }
 ```
 
@@ -294,6 +327,9 @@ try {
   // Install Referrer API unavailable (Android only)
 } on InstallReferrerTimeoutException {
   // Install Referrer connection timed out (Android only)
+} on UnknownException catch (e) {
+  // Unknown error
+  print('Unknown error: ${e.message}');
 } on DynalinksException catch (e) {
   // Catch-all for other errors
   print('Error: ${e.message}');
@@ -309,7 +345,18 @@ try {
 | `handleDeepLink(Uri)` | Manually resolve a deep link URI |
 | `getInitialLink()` | Get the link that launched the app (cold start) |
 | `onDeepLinkReceived` | Stream of incoming links while app is running |
+| `reset()` | Reset SDK state. For tests only: it is annotated `@visibleForTesting`, so calling it from app code triggers an analyzer warning |
 | `version` | SDK version string |
+
+## Upgrading from 1.x
+
+1. **Raise your minimum versions.** 2.0.0 requires Flutter 3.44 and Dart 3.12.
+2. **Call `getInitialLink()` on startup.** A link that launched the app is now delivered only there, never on the `onDeepLinkReceived` stream. If your 1.x app relied on the stream alone, it silently stops receiving cold-start links. See [Handle Incoming Deep Links](#handle-incoming-deep-links).
+3. **iOS: run the app once to migrate.** `flutter run` adopts the UIScene life cycle and switches the project to Swift Package Manager for you. If you maintain `AppDelegate.swift` by hand, apply the plugin registration change shown in [UIScene life cycle](#uiscene-life-cycle).
+4. **iOS: update the native SDK.** 2.0.0 requires Dynalinks iOS SDK 1.0.4 or later. With CocoaPods, run `pod update DynalinksSDK` in the `ios` directory. Swift Package Manager resolves it automatically.
+5. **Android: you can drop `launchMode="singleTask"`.** Earlier versions of this guide asked for it, but deep linking does not need it. Keeping it is fine too.
+
+Nothing changed in the Dart API: no method signatures, parameters or model fields were renamed or removed.
 
 ## How It Works
 
@@ -329,7 +376,7 @@ try {
 1. User clicks a Dynalinks link (app installed)
 2. Platform opens your app directly
 3. SDK receives the link via platform channel
-4. App handles via `getInitialLink()` (cold start) or `onDeepLinkReceived` (warm start)
+4. App receives it through `getInitialLink()` (cold start) or `onDeepLinkReceived` (warm start), never both
 
 ## Platform-Specific Behavior
 

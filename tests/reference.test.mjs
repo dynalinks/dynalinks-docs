@@ -195,7 +195,10 @@ test("every group explains who can call it", () => {
   const notes = {
     "api-keys": "Requires a master API key.",
     projects: "Requires a master API key.",
-    "page-templates": "Requires page-template access",
+    // The production spec still says "page-template access" until the
+    // backend change saying "Requires a Pro plan" is deployed; accept both
+    // until then, and drop the old wording afterwards.
+    "page-templates": /Requires (a Pro plan|page-template access)/,
   };
   for (const [group, note] of Object.entries(notes)) {
     for (const page of REFERENCE_PAGES[group]) {
@@ -203,7 +206,9 @@ test("every group explains who can call it", () => {
         readOut(outFileFor(`/reference/${group}/${page}`)),
       );
       assert.ok(
-        shown.some((text) => text.includes(note)),
+        shown.some((text) =>
+          note instanceof RegExp ? note.test(text) : text.includes(note),
+        ),
         `${group}/${page} shows no callout with "${note}"`,
       );
     }
