@@ -115,3 +115,18 @@ test("the page-template guide points at the API reference", () => {
     "the page-template guide does not link to the reference",
   );
 });
+
+test("page templates are not described as coming soon", () => {
+  for (const url of [
+    "/advanced/page-templates",
+    "/advanced/appearance-settings",
+    "/links/social-previews",
+  ]) {
+    const html = readOut(outFileFor(url));
+    assert.ok(!/coming soon/i.test(html), `${url} still says "coming soon"`);
+    assert.ok(
+      !html.includes("not available yet"),
+      `${url} still says page templates are not available yet`,
+    );
+  }
+});
